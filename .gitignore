@@ -1,0 +1,19 @@
+# Local secrets and environment files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local caches and logs
+node_modules/
+*.log
+__pycache__/
+.pytest_cache/
+

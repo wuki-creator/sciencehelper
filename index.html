@@ -1,0 +1,1385 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="ScienceHelper 科研算法协作平台，连接真实需求与独立算法人才。" />
+  <title>ScienceHelper · 算法协作平台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    :root {
+      --ink: #17201f;
+      --ink-2: #34403e;
+      --muted: #6f7c79;
+      --faint: #98a39f;
+      --paper: #f7f8f5;
+      --surface: #ffffff;
+      --surface-2: #f0f3ef;
+      --line: #dce2de;
+      --line-strong: #c8d1cc;
+      --teal: #0b7367;
+      --teal-dark: #075b52;
+      --teal-soft: #e1f2ee;
+      --cyan: #59d7c7;
+      --amber: #b86b11;
+      --amber-soft: #fff0d9;
+      --red: #bd3f38;
+      --red-soft: #fce9e7;
+      --green: #2d7b4c;
+      --green-soft: #e8f5ec;
+      --blue: #35699a;
+      --blue-soft: #e7f0f8;
+      --radius: 8px;
+      --sidebar: 232px;
+      --shadow: 0 12px 36px rgba(25, 42, 38, 0.12);
+      --font: "Noto Sans SC", "Microsoft YaHei", sans-serif;
+      --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font);
+      font-size: 14px;
+      letter-spacing: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { letter-spacing: 0; }
+    a { color: inherit; text-decoration: none; }
+    svg { display: block; }
+    [hidden] { display: none !important; }
+
+    .app-shell { min-height: 100vh; display: grid; grid-template-columns: var(--sidebar) minmax(0, 1fr); }
+
+    .sidebar {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 40;
+      width: var(--sidebar);
+      display: flex;
+      flex-direction: column;
+      background: #142321;
+      color: #edf4f1;
+      border-right: 1px solid #253c38;
+    }
+    .brand {
+      height: 72px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 20px;
+      border-bottom: 1px solid #29423e;
+    }
+    .brand-mark {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      color: #0c322d;
+      background: var(--cyan);
+      border-radius: 7px;
+    }
+    .brand-name { font-size: 15px; font-weight: 700; line-height: 1.15; }
+    .brand-domain { margin-top: 3px; color: #87a7a1; font: 10px var(--mono); }
+
+    .side-nav { display: grid; gap: 4px; padding: 18px 12px; }
+    .nav-label { padding: 16px 10px 6px; color: #718f89; font-size: 11px; font-weight: 600; }
+    .nav-item {
+      width: 100%;
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 0 11px;
+      border: 0;
+      border-radius: 6px;
+      color: #a9bbb7;
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+      transition: color .18s ease, background .18s ease;
+    }
+    .nav-item:hover { color: #eef7f4; background: #1d312e; }
+    .nav-item.active { color: #ffffff; background: #25534c; }
+    .nav-item.active svg { color: var(--cyan); }
+    .nav-item svg { width: 18px; height: 18px; }
+    .nav-badge {
+      margin-left: auto;
+      min-width: 20px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      background: #2d4742;
+      color: #c8d8d4;
+      font: 11px var(--mono);
+      text-align: center;
+    }
+    .nav-item.active .nav-badge { background: var(--cyan); color: #0d322d; }
+
+    .onboard-card {
+      margin: auto 12px 12px;
+      padding: 14px;
+      border: 1px solid #35534e;
+      border-radius: 8px;
+      background: #19302c;
+    }
+    .onboard-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .onboard-title { font-size: 13px; font-weight: 600; }
+    .onboard-status { color: #f4c57f; font-size: 11px; }
+    .onboard-card p { margin: 8px 0 12px; color: #8ea6a1; font-size: 11px; line-height: 1.6; }
+    .side-cta {
+      width: 100%; height: 36px; border: 0; border-radius: 6px;
+      background: var(--cyan); color: #0b332e; font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+    .side-cta:hover { background: #76e0d3; }
+
+    .side-account {
+      display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+      border-top: 1px solid #29423e;
+    }
+    .avatar {
+      flex: 0 0 auto; width: 34px; height: 34px; display: grid; place-items: center;
+      border-radius: 50%; background: #e3efec; color: var(--teal); font-size: 12px; font-weight: 700;
+    }
+    .account-name { font-size: 12px; font-weight: 600; }
+    .account-role { margin-top: 2px; color: #78958f; font-size: 10px; }
+
+    .main-shell { grid-column: 2; min-width: 0; }
+    .topbar {
+      position: sticky; top: 0; z-index: 30; height: 72px;
+      display: flex; align-items: center; gap: 24px; padding: 0 32px;
+      background: rgba(247, 248, 245, .94); border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(14px);
+    }
+    .mobile-logo { display: none; }
+    .breadcrumb { min-width: 126px; color: var(--muted); font-size: 12px; }
+    .breadcrumb strong { color: var(--ink); font-weight: 600; }
+    .global-search { position: relative; flex: 1; max-width: 520px; }
+    .global-search svg { position: absolute; left: 13px; top: 50%; width: 17px; height: 17px; color: var(--faint); transform: translateY(-50%); }
+    .global-search input {
+      width: 100%; height: 40px; padding: 0 44px 0 39px;
+      color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 7px; outline: none;
+    }
+    .global-search input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(11,115,103,.09); }
+    .search-key { position: absolute; right: 10px; top: 9px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 4px; color: var(--faint); font: 10px var(--mono); }
+    .top-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .icon-btn {
+      position: relative; width: 40px; height: 40px; display: grid; place-items: center;
+      border: 1px solid var(--line); border-radius: 7px; color: var(--ink-2); background: var(--surface); cursor: pointer;
+    }
+    .icon-btn:hover { color: var(--teal); border-color: var(--line-strong); }
+    .icon-btn svg { width: 18px; height: 18px; }
+    .dot { position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border: 2px solid var(--surface); border-radius: 50%; background: var(--red); }
+    .primary-btn, .secondary-btn, .ghost-btn, .danger-btn {
+      min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 0 16px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .16s ease;
+    }
+    .primary-btn { border: 1px solid var(--teal); background: var(--teal); color: white; }
+    .primary-btn:hover { background: var(--teal-dark); border-color: var(--teal-dark); }
+    .secondary-btn { border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }
+    .secondary-btn:hover { border-color: var(--teal); color: var(--teal); }
+    .ghost-btn { border: 1px solid transparent; background: transparent; color: var(--muted); }
+    .ghost-btn:hover { background: var(--surface-2); color: var(--ink); }
+    .danger-btn { border: 1px solid var(--red); background: var(--red); color: white; }
+    .primary-btn svg, .secondary-btn svg, .ghost-btn svg { width: 16px; height: 16px; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid rgba(11,115,103,.18); outline-offset: 2px; }
+
+    .content { width: min(1440px, 100%); margin: 0 auto; padding: 28px 32px 72px; }
+    .view { display: none; animation: viewIn .22s ease-out; }
+    .view.active { display: block; }
+    @keyframes viewIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+    .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
+    .eyebrow { margin-bottom: 7px; color: var(--teal); font: 600 11px var(--mono); text-transform: uppercase; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.3; font-weight: 700; }
+    h2 { margin-bottom: 6px; font-size: 20px; line-height: 1.4; font-weight: 700; }
+    h3 { margin-bottom: 5px; font-size: 15px; line-height: 1.5; font-weight: 600; }
+    .page-head p, .section-head p { margin-bottom: 0; color: var(--muted); line-height: 1.6; }
+    .page-head-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .signal-band {
+      position: relative; overflow: hidden; min-height: 214px;
+      display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr); gap: 40px; align-items: center;
+      margin-bottom: 24px; padding: 30px 34px; border-radius: var(--radius); background: #183431; color: white;
+    }
+    .signal-band::after {
+      content: ""; position: absolute; right: 33%; top: 0; bottom: 0; width: 1px; background: #32514c;
+    }
+    .signal-copy { position: relative; z-index: 1; max-width: 650px; }
+    .signal-kicker { margin-bottom: 10px; color: #7fe2d4; font: 600 11px var(--mono); }
+    .signal-copy h1 { max-width: 610px; margin-bottom: 10px; font-size: 31px; line-height: 1.25; }
+    .signal-copy p { max-width: 560px; margin-bottom: 20px; color: #a9c0bb; line-height: 1.7; }
+    .signal-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .signal-actions .primary-btn { border-color: var(--cyan); background: var(--cyan); color: #10322d; }
+    .signal-actions .secondary-btn { border-color: #46635e; background: transparent; color: #dce9e6; }
+    .signal-actions .secondary-btn:hover { border-color: #7fb4ab; color: white; }
+    .income-signal { position: relative; z-index: 1; padding-left: 24px; }
+    .income-signal .label { color: #91aaa5; font-size: 12px; }
+    .income-value { margin: 8px 0 12px; font: 600 35px var(--mono); }
+    .income-value small { margin-right: 5px; font-size: 17px; color: #b6cbc7; }
+    .income-meta { display: flex; gap: 20px; color: #9fb5b1; font-size: 11px; }
+    .income-meta strong { display: block; margin-bottom: 2px; color: #e9f2f0; font: 600 14px var(--mono); }
+
+    .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 26px; }
+    .metric-card { padding: 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+    .metric-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .metric-icon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 7px; background: var(--surface-2); color: var(--teal); }
+    .metric-icon svg { width: 16px; height: 16px; }
+    .trend { font: 500 11px var(--mono); color: var(--green); }
+    .metric-number { font: 600 24px var(--mono); }
+    .metric-label { margin-top: 4px; color: var(--muted); font-size: 12px; }
+
+    .product-bridge {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 24px;
+      align-items: center;
+      margin-bottom: 26px;
+      padding: 20px 22px;
+      border: 1px solid #cfe1dc;
+      border-radius: var(--radius);
+      background: #eef7f4;
+    }
+    .product-bridge-copy { display: flex; align-items: flex-start; gap: 13px; min-width: 0; }
+    .product-bridge-mark { width: 38px; height: 38px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 8px; background: var(--teal); color: white; }
+    .product-bridge-mark svg { width: 19px; height: 19px; }
+    .product-bridge h2 { margin-bottom: 4px; font-size: 16px; }
+    .product-bridge p { max-width: 680px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+    .product-bridge-domain { margin-top: 7px; color: var(--teal); font: 500 10px var(--mono); }
+    .product-bridge-actions { display: flex; align-items: center; gap: 8px; }
+    .external-link svg { width: 15px; height: 15px; }
+
+    .workspace-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, .65fr); gap: 24px; align-items: start; }
+    .section { min-width: 0; }
+    .section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+    .section-head h2 { margin: 0; }
+    .text-link { border: 0; background: transparent; color: var(--teal); font-size: 12px; font-weight: 600; cursor: pointer; }
+    .text-link:hover { color: var(--teal-dark); }
+
+    .demand-list { overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+    .demand-row {
+      display: grid; grid-template-columns: minmax(0, 1fr) 116px 102px 24px; gap: 18px; align-items: center;
+      min-height: 104px; padding: 17px 18px; border-bottom: 1px solid var(--line); cursor: pointer; transition: background .15s ease;
+    }
+    .demand-row:last-child { border-bottom: 0; }
+    .demand-row:hover { background: #f7faf8; }
+    .demand-row:hover .row-arrow { color: var(--teal); transform: translateX(2px); }
+    .demand-title { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+    .demand-title h3 { margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .pill, .status-pill {
+      display: inline-flex; align-items: center; flex: 0 0 auto; min-height: 22px; padding: 2px 7px;
+      border-radius: 5px; font-size: 10px; font-weight: 600;
+    }
+    .pill.urgent { background: var(--red-soft); color: var(--red); }
+    .pill.new { background: var(--teal-soft); color: var(--teal); }
+    .pill.invite { background: var(--amber-soft); color: var(--amber); }
+    .demand-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); font-size: 11px; }
+    .demand-meta span { display: inline-flex; align-items: center; gap: 5px; }
+    .demand-meta svg { width: 13px; height: 13px; }
+    .budget { text-align: right; }
+    .budget strong { display: block; font: 600 15px var(--mono); color: var(--amber); }
+    .budget span { color: var(--faint); font-size: 10px; }
+    .match-score { text-align: center; }
+    .match-score strong { display: block; font: 600 14px var(--mono); color: var(--teal); }
+    .match-score span { color: var(--faint); font-size: 10px; }
+    .row-arrow { width: 18px; height: 18px; color: var(--faint); transition: all .15s ease; }
+
+    .activity-panel { border-top: 2px solid var(--ink); background: var(--surface); }
+    .activity-item { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; padding: 16px 4px; border-bottom: 1px solid var(--line); }
+    .activity-icon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--teal-soft); color: var(--teal); }
+    .activity-icon.amber { background: var(--amber-soft); color: var(--amber); }
+    .activity-icon.blue { background: var(--blue-soft); color: var(--blue); }
+    .activity-icon svg { width: 15px; height: 15px; }
+    .activity-copy { min-width: 0; }
+    .activity-copy p { margin: 0 0 4px; line-height: 1.5; }
+    .activity-copy p strong { font-weight: 600; }
+    .activity-copy time { color: var(--faint); font-size: 10px; }
+
+    .filter-bar {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding: 12px;
+      border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+    }
+    .filter-search { position: relative; flex: 1; min-width: 180px; }
+    .filter-search svg { position: absolute; left: 12px; top: 50%; width: 16px; height: 16px; color: var(--faint); transform: translateY(-50%); }
+    .filter-search input { width: 100%; height: 38px; padding: 0 12px 0 36px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); outline: 0; }
+    .select-wrap { position: relative; }
+    .select-wrap select { height: 38px; padding: 0 34px 0 11px; appearance: none; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink-2); outline: 0; cursor: pointer; }
+    .select-wrap svg { position: absolute; right: 10px; top: 50%; width: 14px; height: 14px; color: var(--muted); pointer-events: none; transform: translateY(-50%); }
+    .view-toggle { display: flex; padding: 3px; border: 1px solid var(--line); border-radius: 6px; }
+    .view-toggle button { width: 31px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 4px; color: var(--muted); background: transparent; cursor: pointer; }
+    .view-toggle button.active { color: var(--teal); background: var(--teal-soft); }
+    .view-toggle svg { width: 15px; height: 15px; }
+
+    .market-layout { display: grid; grid-template-columns: 184px minmax(0, 1fr); gap: 20px; }
+    .filter-rail { padding-right: 18px; border-right: 1px solid var(--line); }
+    .filter-group { margin-bottom: 24px; }
+    .filter-title { margin-bottom: 10px; font-size: 12px; font-weight: 600; }
+    .check-line { display: flex; align-items: center; gap: 8px; min-height: 32px; color: var(--muted); cursor: pointer; }
+    .check-line input { width: 15px; height: 15px; accent-color: var(--teal); }
+    .check-line span:last-child { margin-left: auto; color: var(--faint); font: 10px var(--mono); }
+    .market-count { margin: 2px 0 10px; color: var(--muted); font-size: 11px; }
+    .market-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .demand-card {
+      min-width: 0; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); cursor: pointer;
+      transition: transform .16s ease, border-color .16s ease;
+    }
+    .demand-card:hover { transform: translateY(-2px); border-color: #9cb7b1; }
+    .demand-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
+    .demand-id { color: var(--faint); font: 10px var(--mono); }
+    .demand-card h3 { min-height: 46px; margin-bottom: 9px; font-size: 16px; }
+    .demand-card p { min-height: 44px; margin-bottom: 14px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .tag-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag { padding: 4px 7px; border-radius: 4px; background: var(--surface-2); color: var(--ink-2); font-size: 10px; }
+    .demand-card-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+    .card-budget span { display: block; margin-bottom: 3px; color: var(--faint); font-size: 10px; }
+    .card-budget strong { font: 600 18px var(--mono); color: var(--amber); }
+    .card-deadline { color: var(--muted); font-size: 10px; text-align: right; }
+    .card-deadline strong { display: block; margin-bottom: 3px; color: var(--ink-2); font: 600 12px var(--mono); }
+    .empty-state { grid-column: 1/-1; padding: 64px 24px; border: 1px dashed var(--line-strong); border-radius: var(--radius); color: var(--muted); text-align: center; }
+    .empty-state svg { width: 32px; height: 32px; margin: 0 auto 12px; color: var(--faint); }
+
+    .proposal-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+    table { width: 100%; border-collapse: collapse; }
+    th { padding: 12px 16px; background: var(--surface-2); color: var(--muted); font-size: 11px; font-weight: 600; text-align: left; white-space: nowrap; }
+    td { padding: 16px; border-top: 1px solid var(--line); vertical-align: middle; }
+    .table-title { min-width: 240px; font-weight: 600; }
+    .table-sub { margin-top: 4px; color: var(--faint); font: 10px var(--mono); }
+    .status-pill.review { background: var(--amber-soft); color: var(--amber); }
+    .status-pill.accepted { background: var(--green-soft); color: var(--green); }
+    .status-pill.draft { background: var(--surface-2); color: var(--muted); }
+    .status-pill.rejected { background: var(--red-soft); color: var(--red); }
+    .table-money { font: 600 13px var(--mono); }
+    .table-action { width: 34px; height: 34px; display: grid; place-items: center; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+    .table-action:hover { color: var(--teal); }
+
+    .earnings-layout { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(300px, .55fr); gap: 20px; }
+    .chart-panel, .payout-panel { padding: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+    .chart-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 26px; }
+    .chart-total { margin-top: 8px; font: 600 27px var(--mono); }
+    .chart-total small { color: var(--muted); font: 12px var(--font); }
+    .bar-chart { height: 210px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; align-items: end; padding: 16px 8px 0; border-bottom: 1px solid var(--line); }
+    .bar-item { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 8px; }
+    .bar { position: relative; width: min(42px, 70%); min-height: 4px; background: var(--teal); border-radius: 4px 4px 0 0; transition: opacity .16s ease; }
+    .bar:hover { opacity: .75; }
+    .bar::before { content: attr(data-value); position: absolute; left: 50%; top: -24px; color: var(--ink-2); font: 10px var(--mono); transform: translateX(-50%); }
+    .bar-item span { margin-bottom: -25px; color: var(--faint); font-size: 10px; }
+    .chart-legend { margin-top: 32px; display: flex; justify-content: center; gap: 22px; color: var(--muted); font-size: 10px; }
+    .legend-dot { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 2px; background: var(--teal); }
+    .payout-amount { margin: 20px 0 4px; font: 600 30px var(--mono); }
+    .payout-hint { color: var(--muted); font-size: 11px; }
+    .account-box { margin: 22px 0 16px; padding: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .account-box div { display: flex; justify-content: space-between; gap: 12px; margin: 7px 0; color: var(--muted); font-size: 11px; }
+    .account-box strong { color: var(--ink); font-weight: 600; }
+    .payout-panel .primary-btn { width: 100%; }
+    .income-ledger { grid-column: 1/-1; margin-top: 4px; }
+
+    .case-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .case-card { overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+    .case-visual { position: relative; height: 168px; overflow: hidden; background: #193532; }
+    .case-visual .visual-label { position: absolute; left: 14px; top: 13px; z-index: 2; color: #b9d2cd; font: 9px var(--mono); }
+    .matrix { position: absolute; inset: 45px 22px 20px; display: grid; grid-template-columns: repeat(9, 1fr); gap: 3px; transform: rotate(-3deg); }
+    .matrix i { border-radius: 2px; background: var(--cyan); opacity: var(--o); }
+    .scan-line { position: absolute; left: 18px; right: 18px; top: 82px; height: 1px; background: #f2bd6d; box-shadow: 0 0 14px #f2bd6d; }
+    .defect-grid { position: absolute; inset: 42px 18px 18px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+    .defect-grid i { border: 1px solid #365e58; background: #213f3b; }
+    .defect-grid i:nth-child(6) { border-color: #f1ab59; background: #594629; }
+    .network { position: absolute; inset: 38px 28px 22px; }
+    .network::before, .network::after { content: ""; position: absolute; inset: 15px 30px; border: 1px solid #4d7770; transform: rotate(18deg); }
+    .network::after { inset: 29px 8px 7px 46px; transform: rotate(-21deg); }
+    .node { position: absolute; width: 9px; height: 9px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 0 4px rgba(89,215,199,.12); }
+    .node:nth-child(1) { left: 8%; top: 36%; } .node:nth-child(2) { left: 42%; top: 10%; }
+    .node:nth-child(3) { left: 72%; top: 28%; } .node:nth-child(4) { left: 30%; top: 72%; }
+    .node:nth-child(5) { left: 82%; top: 76%; background: #eab45d; }
+    .case-body { padding: 17px; }
+    .case-body h3 { margin-bottom: 8px; font-size: 16px; }
+    .case-body p { min-height: 45px; margin-bottom: 15px; color: var(--muted); font-size: 12px; line-height: 1.65; }
+    .case-metrics { display: grid; grid-template-columns: repeat(3, 1fr); padding-top: 14px; border-top: 1px solid var(--line); }
+    .case-metrics div { border-right: 1px solid var(--line); text-align: center; }
+    .case-metrics div:last-child { border-right: 0; }
+    .case-metrics strong { display: block; margin-bottom: 3px; font: 600 13px var(--mono); }
+    .case-metrics span { color: var(--faint); font-size: 9px; }
+
+    .onboarding-layout { display: grid; grid-template-columns: 240px minmax(0, 720px); gap: 38px; justify-content: center; align-items: start; }
+    .step-rail { position: sticky; top: 100px; }
+    .step-item { position: relative; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; min-height: 76px; }
+    .step-item:not(:last-child)::after { content: ""; position: absolute; left: 14px; top: 31px; bottom: 3px; width: 1px; background: var(--line-strong); }
+    .step-number { position: relative; z-index: 1; width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 50%; background: var(--paper); color: var(--muted); font: 11px var(--mono); }
+    .step-item.active .step-number { border-color: var(--teal); background: var(--teal); color: white; }
+    .step-item.done .step-number { border-color: var(--teal); background: var(--teal-soft); color: var(--teal); }
+    .step-copy strong { display: block; margin: 4px 0 4px; font-size: 12px; }
+    .step-copy span { color: var(--faint); font-size: 10px; line-height: 1.5; }
+    .form-panel { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+    .form-head { padding: 22px 24px 18px; border-bottom: 1px solid var(--line); }
+    .form-head h2 { margin-bottom: 5px; }
+    .form-head p { margin: 0; color: var(--muted); font-size: 12px; }
+    .form-body { padding: 24px; }
+    .form-step { display: none; }
+    .form-step.active { display: block; animation: viewIn .2s ease-out; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 17px 16px; }
+    .field { min-width: 0; }
+    .field.full { grid-column: 1/-1; }
+    .field label { display: block; margin-bottom: 7px; font-size: 11px; font-weight: 600; }
+    .required { color: var(--red); }
+    .field input, .field textarea, .field select {
+      width: 100%; border: 1px solid var(--line-strong); border-radius: 6px; color: var(--ink); background: var(--surface); outline: 0;
+    }
+    .field input, .field select { height: 42px; padding: 0 12px; }
+    .field textarea { min-height: 104px; padding: 10px 12px; line-height: 1.6; resize: vertical; }
+    .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(11,115,103,.08); }
+    .field-hint { margin-top: 6px; color: var(--faint); font-size: 10px; }
+    .skill-options { display: flex; flex-wrap: wrap; gap: 8px; }
+    .skill-option input { position: absolute; opacity: 0; pointer-events: none; }
+    .skill-option span { display: inline-flex; min-height: 34px; align-items: center; padding: 0 11px; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); cursor: pointer; }
+    .skill-option input:checked + span { border-color: var(--teal); background: var(--teal-soft); color: var(--teal); font-weight: 600; }
+    .form-footer { display: flex; justify-content: space-between; gap: 12px; padding: 16px 24px; border-top: 1px solid var(--line); }
+
+    .review-summary { display: grid; gap: 0; margin-bottom: 20px; border-top: 1px solid var(--line); }
+    .review-line { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+    .review-line span { color: var(--muted); font-size: 11px; }
+    .review-line strong { font-size: 12px; font-weight: 600; }
+    .fee-option { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px; border: 1px solid var(--teal); border-radius: 7px; background: var(--teal-soft); }
+    .fee-option h3 { margin: 0 0 4px; }
+    .fee-option p { margin: 0; color: var(--muted); font-size: 10px; }
+    .fee-price { font: 600 22px var(--mono); color: var(--teal); white-space: nowrap; }
+    .fee-price small { font: 10px var(--font); color: var(--muted); }
+    .agreement { display: flex; align-items: flex-start; gap: 8px; margin-top: 16px; color: var(--muted); font-size: 10px; line-height: 1.6; }
+    .agreement input { margin-top: 2px; accent-color: var(--teal); }
+
+    .pay-layout { display: grid; grid-template-columns: 224px minmax(0, 1fr); gap: 26px; align-items: center; }
+    .qr-shell { width: 216px; height: 216px; display: grid; place-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 7px; background: white; }
+    #pay-qr { width: 190px; height: 190px; }
+    #pay-qr img, #pay-qr canvas { width: 190px; height: 190px; }
+    .pay-brand { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; color: var(--green); font-size: 13px; font-weight: 600; }
+    .pay-brand svg { width: 20px; height: 20px; }
+    .pay-price { margin-bottom: 8px; font: 600 31px var(--mono); }
+    .pay-price small { font-size: 14px; }
+    .pay-copy { margin-bottom: 18px; color: var(--muted); font-size: 11px; line-height: 1.7; }
+    .order-line { display: flex; justify-content: space-between; gap: 12px; margin: 8px 0; color: var(--muted); font-size: 10px; }
+    .order-line strong { color: var(--ink-2); font: 500 10px var(--mono); }
+    .pay-status { display: flex; align-items: center; gap: 8px; margin-top: 18px; color: var(--amber); font-size: 11px; }
+    .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); animation: pulse 1.7s infinite; }
+    @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(184,107,17,.25); } 50% { box-shadow: 0 0 0 7px rgba(184,107,17,0); } }
+
+    .drawer-overlay { position: fixed; inset: 0; z-index: 80; display: none; background: rgba(17,30,28,.38); }
+    .drawer-overlay.open { display: block; }
+    .drawer {
+      position: absolute; inset: 0 0 0 auto; width: min(560px, 100%); display: flex; flex-direction: column;
+      background: var(--surface); box-shadow: var(--shadow); animation: drawerIn .24s ease-out;
+    }
+    @keyframes drawerIn { from { transform: translateX(24px); opacity: .5; } to { transform: translateX(0); opacity: 1; } }
+    .drawer-head { display: flex; align-items: center; gap: 12px; padding: 17px 20px; border-bottom: 1px solid var(--line); }
+    .drawer-head h2 { margin: 0; font-size: 16px; }
+    .drawer-head .icon-btn { margin-left: auto; }
+    .drawer-body { flex: 1; overflow-y: auto; padding: 24px; }
+    .drawer-body h1 { margin: 12px 0 14px; font-size: 24px; }
+    .detail-summary { color: var(--muted); line-height: 1.8; }
+    .detail-metrics { display: grid; grid-template-columns: repeat(3, 1fr); margin: 22px 0; padding: 16px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .detail-metrics div { padding: 0 12px; border-right: 1px solid var(--line); }
+    .detail-metrics div:first-child { padding-left: 0; }
+    .detail-metrics div:last-child { border-right: 0; }
+    .detail-metrics span { display: block; margin-bottom: 5px; color: var(--faint); font-size: 10px; }
+    .detail-metrics strong { font: 600 13px var(--mono); }
+    .detail-block { margin-top: 22px; }
+    .detail-block h3 { margin-bottom: 10px; }
+    .detail-block p, .detail-block li { color: var(--muted); font-size: 12px; line-height: 1.8; }
+    .detail-block ul { margin: 0; padding-left: 18px; }
+    .drawer-foot { display: flex; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--line); background: var(--surface); }
+    .drawer-foot .primary-btn { flex: 1; }
+
+    .modal-overlay { position: fixed; inset: 0; z-index: 100; display: none; place-items: center; padding: 20px; background: rgba(17,30,28,.52); }
+    .modal-overlay.open { display: grid; }
+    .modal { width: min(540px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); animation: modalIn .2s ease-out; }
+    @keyframes modalIn { from { opacity: 0; transform: translateY(8px) scale(.99); } to { opacity: 1; transform: none; } }
+    .modal-head { display: flex; align-items: flex-start; gap: 14px; padding: 20px 22px; border-bottom: 1px solid var(--line); }
+    .modal-head h2 { margin: 0 0 4px; font-size: 17px; }
+    .modal-head p { margin: 0; color: var(--muted); font-size: 11px; }
+    .modal-head .icon-btn { margin-left: auto; }
+    .modal-body { padding: 22px; }
+    .modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 15px 22px; border-top: 1px solid var(--line); }
+
+    .communication-panel { position: fixed; right: 30px; top: 64px; z-index: 70; width: min(570px, calc(100vw - 32px)); height: min(620px, calc(100vh - 88px)); display: none; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+    .communication-panel.open { display: flex; flex-direction: column; animation: viewIn .16s ease-out; }
+    .communication-head { display: flex; align-items: flex-start; gap: 12px; padding: 17px 18px 14px; border-bottom: 1px solid var(--line); }
+    .communication-head h2 { margin: 0 0 4px; font-size: 16px; }
+    .communication-head p { margin: 0; color: var(--muted); font-size: 10px; }
+    .communication-head .icon-btn { margin-left: auto; }
+    .communication-tabs { display: flex; gap: 4px; padding: 8px 12px 0; border-bottom: 1px solid var(--line); }
+    .communication-tab { position: relative; min-height: 38px; padding: 0 10px; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; font-weight: 600; }
+    .communication-tab.active { color: var(--teal); }
+    .communication-tab.active::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; background: var(--teal); }
+    .comm-count { display: inline-grid; place-items: center; min-width: 18px; height: 18px; margin-left: 5px; padding: 0 5px; border-radius: 9px; background: var(--teal-soft); color: var(--teal); font: 10px var(--mono); }
+    .comm-count:empty { display: none; }
+    .communication-body { flex: 1; min-height: 0; }
+    .communication-view { display: none; height: 100%; }
+    .communication-view.active { display: block; }
+    .comm-toolbar { display: flex; align-items: center; justify-content: space-between; min-height: 42px; padding: 0 16px; border-bottom: 1px solid var(--line); color: var(--ink-2); font-size: 11px; font-weight: 600; }
+    .comm-toolbar button { border: 0; background: transparent; color: var(--teal); cursor: pointer; font-size: 10px; }
+    .notification-list { height: calc(100% - 42px); overflow-y: auto; }
+    .notification-item { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); cursor: pointer; }
+    .notification-item:hover, .notification-item.unread { background: #f5faf8; }
+    .notification-item.unread { box-shadow: inset 2px 0 0 var(--teal); }
+    .notification-icon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--teal-soft); color: var(--teal); }
+    .notification-icon.amber { background: var(--amber-soft); color: var(--amber); }
+    .notification-icon.blue { background: var(--blue-soft); color: var(--blue); }
+    .notification-icon svg { width: 15px; height: 15px; }
+    .notification-copy { min-width: 0; }
+    .notification-copy strong { display: block; margin-bottom: 4px; font-size: 12px; }
+    .notification-copy p { overflow: hidden; margin: 0 0 5px; color: var(--muted); font-size: 11px; line-height: 1.55; text-overflow: ellipsis; white-space: nowrap; }
+    .notification-copy time, .notification-item > time { color: var(--faint); font-size: 10px; white-space: nowrap; }
+    .notification-unread { width: 6px; height: 6px; margin-top: 5px; border-radius: 50%; background: var(--red); }
+    .message-layout { display: grid; grid-template-columns: 190px minmax(0, 1fr); height: 100%; }
+    .thread-list { overflow-y: auto; border-right: 1px solid var(--line); }
+    .thread-row { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 9px; padding: 13px 11px; border-bottom: 1px solid var(--line); cursor: pointer; }
+    .thread-row:hover, .thread-row.active { background: var(--surface-2); }
+    .thread-avatar { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: #e3efec; color: var(--teal); font-size: 11px; font-weight: 700; }
+    .thread-row-copy { min-width: 0; }
+    .thread-row-top { display: flex; justify-content: space-between; gap: 5px; margin-bottom: 3px; }
+    .thread-row strong { overflow: hidden; color: var(--ink-2); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .thread-row time { color: var(--faint); font-size: 9px; white-space: nowrap; }
+    .thread-row p { overflow: hidden; margin: 0; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+    .thread-unread { display: inline-grid; min-width: 17px; height: 17px; place-items: center; margin-left: 3px; padding: 0 4px; border-radius: 9px; background: var(--teal); color: white; font: 9px var(--mono); }
+    .thread-detail { display: flex; min-width: 0; flex-direction: column; }
+    .thread-detail-empty { display: grid; flex: 1; place-items: center; padding: 24px; color: var(--faint); font-size: 11px; text-align: center; }
+    .thread-head { display: flex; align-items: center; gap: 9px; min-height: 52px; padding: 0 14px; border-bottom: 1px solid var(--line); }
+    .thread-head strong { display: block; font-size: 12px; }
+    .thread-head span { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .thread-messages { display: flex; flex: 1; flex-direction: column; gap: 8px; overflow-y: auto; padding: 15px 14px; background: var(--paper); }
+    .message-bubble { max-width: 83%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 7px 7px 7px 2px; background: var(--surface); color: var(--ink-2); font-size: 11px; line-height: 1.55; }
+    .message-bubble.mine { align-self: flex-end; border-color: #bfe2da; border-radius: 7px 7px 2px 7px; background: var(--teal-soft); }
+    .message-time { margin-top: 3px; color: var(--faint); font-size: 9px; }
+    .message-compose { display: flex; gap: 7px; padding: 10px; border-top: 1px solid var(--line); background: var(--surface); }
+    .message-compose textarea { flex: 1; min-height: 38px; max-height: 72px; padding: 9px 10px; border: 1px solid var(--line-strong); border-radius: 6px; outline: 0; resize: none; font-size: 11px; }
+    .message-compose textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(11,115,103,.08); }
+    .message-compose button { min-width: 52px; padding: 0 9px; }
+
+    .auth-modal { width: min(460px, 100%); }
+    .auth-head { padding-bottom: 14px; }
+    .auth-brand { display: flex; align-items: center; gap: 9px; margin-bottom: 16px; color: var(--teal); font-size: 13px; font-weight: 700; }
+    .auth-brand-mark { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 6px; background: var(--teal); color: white; }
+    .auth-brand-mark svg { width: 16px; height: 16px; }
+    .auth-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 0 22px; border-bottom: 1px solid var(--line); }
+    .auth-tab { position: relative; height: 42px; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-weight: 600; }
+    .auth-tab.active { color: var(--teal); }
+    .auth-tab.active::after { content: ""; position: absolute; left: 18%; right: 18%; bottom: -1px; height: 2px; background: var(--teal); }
+    .auth-form { display: none; }
+    .auth-form.active { display: block; animation: viewIn .18s ease-out; }
+    .auth-form .form-grid { gap: 14px; }
+    .auth-form .field.full { grid-column: 1 / -1; }
+    .password-wrap { position: relative; }
+    .password-wrap input { padding-right: 42px; }
+    .password-toggle { position: absolute; right: 4px; top: 4px; width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 5px; color: var(--muted); background: transparent; cursor: pointer; }
+    .password-toggle:hover { color: var(--teal); background: var(--surface-2); }
+    .password-toggle svg { width: 16px; height: 16px; }
+    .strength { display: flex; align-items: center; gap: 7px; margin-top: 7px; color: var(--faint); font-size: 10px; }
+    .strength-bars { display: flex; flex: 1; gap: 3px; }
+    .strength-bars i { height: 3px; flex: 1; border-radius: 2px; background: var(--line); }
+    .strength[data-level="1"] .strength-bars i:nth-child(1) { background: var(--red); }
+    .strength[data-level="2"] .strength-bars i:nth-child(-n+2) { background: var(--amber); }
+    .strength[data-level="3"] .strength-bars i:nth-child(-n+3) { background: #9da938; }
+    .strength[data-level="4"] .strength-bars i { background: var(--green); }
+    .auth-options { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0 18px; color: var(--muted); font-size: 11px; }
+    .remember { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+    .remember input { accent-color: var(--teal); }
+    .auth-submit { width: 100%; }
+    .auth-footnote { margin: 15px 0 0; color: var(--faint); font-size: 10px; line-height: 1.6; text-align: center; }
+    .auth-footnote a { color: var(--teal); }
+    .profile-menu { position: fixed; right: 30px; top: 64px; z-index: 65; width: 220px; display: none; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+    .profile-menu.open { display: block; animation: viewIn .16s ease-out; }
+    .profile-summary { display: flex; align-items: center; gap: 9px; padding: 9px; border-bottom: 1px solid var(--line); }
+    .profile-summary strong { display: block; font-size: 12px; }
+    .profile-summary span { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .profile-action { width: 100%; display: flex; align-items: center; gap: 9px; min-height: 37px; padding: 0 9px; border: 0; border-radius: 5px; background: transparent; color: var(--ink-2); cursor: pointer; text-align: left; font-size: 11px; }
+    .profile-action:hover { background: var(--surface-2); color: var(--teal); }
+    .profile-action.danger:hover { color: var(--red); }
+    .profile-action svg { width: 15px; height: 15px; }
+
+    .toast { position: fixed; left: 50%; bottom: 26px; z-index: 140; display: flex; align-items: center; gap: 9px; min-height: 44px; padding: 0 15px; border-radius: 7px; background: #17332f; color: white; box-shadow: var(--shadow); transform: translate(-50%, 20px); opacity: 0; pointer-events: none; transition: all .22s ease; }
+    .toast.show { transform: translate(-50%, 0); opacity: 1; }
+    .toast svg { width: 17px; height: 17px; color: var(--cyan); }
+
+    .mobile-tabs { display: none; }
+
+    .site-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-top: 54px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+      color: var(--faint);
+      font-size: 10px;
+    }
+    .site-footer div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; }
+    .site-footer a:hover { color: var(--teal); }
+    .site-footer .domain { color: var(--ink-2); font: 500 10px var(--mono); }
+
+    @media (max-width: 1100px) {
+      :root { --sidebar: 208px; }
+      .content { padding-left: 24px; padding-right: 24px; }
+      .metric-grid { grid-template-columns: repeat(2, 1fr); }
+      .product-bridge { grid-template-columns: 1fr; gap: 14px; }
+      .workspace-grid, .earnings-layout { grid-template-columns: 1fr; }
+      .income-ledger { grid-column: 1; }
+      .case-grid { grid-template-columns: repeat(2, 1fr); }
+      .market-grid { grid-template-columns: 1fr; }
+      .signal-band::after { right: 36%; }
+    }
+
+    @media (max-width: 760px) {
+      body { padding-bottom: 66px; }
+      .app-shell { display: block; }
+      .sidebar { display: none; }
+      .main-shell { width: 100%; }
+      .topbar { height: 62px; padding: 0 16px; gap: 12px; }
+      .mobile-logo { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 7px; background: #183431; color: var(--cyan); }
+      .mobile-logo svg { width: 18px; height: 18px; }
+      .breadcrumb, .search-key, .top-actions .primary-btn { display: none; }
+      .top-actions .auth-open { width: 40px; min-width: 40px; padding: 0; font-size: 0; }
+      .top-actions .auth-open svg { width: 17px; height: 17px; }
+      .global-search { max-width: none; }
+      .content { padding: 20px 16px 48px; }
+      .page-head { align-items: flex-start; flex-direction: column; gap: 14px; }
+      .page-head h1 { font-size: 24px; }
+      .signal-band { grid-template-columns: 1fr; gap: 26px; padding: 25px 22px; }
+      .signal-band::after { display: none; }
+      .signal-copy h1 { font-size: 26px; }
+      .income-signal { padding: 20px 0 0; border-top: 1px solid #32514c; }
+      .metric-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .metric-card { padding: 14px; }
+      .demand-row { grid-template-columns: minmax(0, 1fr) 86px 20px; min-height: 112px; padding: 14px; }
+      .match-score { display: none; }
+      .market-layout { grid-template-columns: 1fr; }
+      .filter-rail { display: none; }
+      .filter-bar { align-items: stretch; flex-wrap: wrap; }
+      .filter-search { flex: 1 1 100%; }
+      .select-wrap { flex: 1; }
+      .select-wrap select { width: 100%; }
+      .view-toggle { display: none; }
+      .case-grid { grid-template-columns: 1fr; }
+      .onboarding-layout { grid-template-columns: 1fr; gap: 20px; }
+      .step-rail { position: static; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+      .step-item { min-height: auto; display: flex; align-items: center; gap: 7px; }
+      .step-item::after, .step-copy span { display: none !important; }
+      .step-number { width: 26px; height: 26px; }
+      .step-copy strong { font-size: 10px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .field.full { grid-column: 1; }
+      .pay-layout { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+      .pay-info { width: 100%; }
+      .order-line { text-align: left; }
+      .detail-metrics { grid-template-columns: 1fr; gap: 12px; }
+      .detail-metrics div, .detail-metrics div:first-child { padding: 0; border: 0; }
+      .bar-chart { gap: 7px; padding-left: 0; padding-right: 0; }
+      .mobile-tabs {
+        position: fixed; inset: auto 0 0; z-index: 50; height: 66px; display: grid; grid-template-columns: repeat(5, 1fr);
+        border-top: 1px solid var(--line); background: rgba(255,255,255,.96); backdrop-filter: blur(14px);
+      }
+      .mobile-tab { border: 0; background: transparent; color: var(--muted); font-size: 9px; cursor: pointer; }
+      .mobile-tab svg { width: 18px; height: 18px; margin: 0 auto 4px; }
+      .mobile-tab.active { color: var(--teal); }
+      .communication-panel { right: 12px; top: 56px; width: min(570px, calc(100vw - 24px)); height: min(640px, calc(100vh - 78px)); }
+      .message-layout { grid-template-columns: 1fr; }
+      .thread-list { display: block; border-right: 0; }
+      .thread-detail { display: none; }
+      .message-layout.thread-open .thread-list { display: none; }
+      .message-layout.thread-open .thread-detail { display: flex; }
+      .site-footer { align-items: flex-start; flex-direction: column; margin-top: 40px; }
+      .profile-menu { right: 12px; top: 56px; }
+    }
+
+    @media (max-width: 420px) {
+      .metric-grid { grid-template-columns: 1fr; }
+      .product-bridge { padding: 17px; }
+      .product-bridge-actions .primary-btn { width: 100%; }
+      .metric-card { display: grid; grid-template-columns: 40px 1fr; column-gap: 8px; align-items: center; }
+      .metric-top { grid-row: 1/3; margin: 0; }
+      .metric-top .trend { display: none; }
+      .metric-number { font-size: 20px; }
+      .demand-row { grid-template-columns: minmax(0, 1fr) 20px; }
+      .budget { display: none; }
+      .form-body, .form-head { padding-left: 18px; padding-right: 18px; }
+      .form-footer { padding-left: 18px; padding-right: 18px; }
+      .review-line { grid-template-columns: 98px minmax(0, 1fr); }
+      .fee-option { align-items: flex-start; flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="主导航">
+      <div class="brand">
+        <div class="brand-mark"><i data-lucide="orbit"></i></div>
+        <div>
+          <div class="brand-name">ScienceHelper</div>
+          <div class="brand-domain">www.sciencehelper.cn</div>
+        </div>
+      </div>
+      <nav class="side-nav">
+        <button class="nav-item active" data-view="dashboard"><i data-lucide="layout-dashboard"></i><span>工作台</span></button>
+        <button class="nav-item" data-view="market"><i data-lucide="panels-top-left"></i><span>需求大厅</span><span class="nav-badge">36</span></button>
+        <button class="nav-item" data-view="proposals"><i data-lucide="file-check-2"></i><span>我的方案</span><span class="nav-badge">4</span></button>
+        <button class="nav-item" data-view="earnings"><i data-lucide="wallet-cards"></i><span>收益中心</span></button>
+        <div class="nav-label">发现</div>
+        <button class="nav-item" data-view="cases"><i data-lucide="gallery-vertical-end"></i><span>成功案例</span></button>
+        <a class="nav-item external-link" href="https://www.cellbubble.cn" target="_blank" rel="noopener noreferrer"><i data-lucide="orbit"></i><span>PaperPilot</span><i data-lucide="external-link"></i></a>
+      </nav>
+      <div class="onboard-card" id="side-onboard-card">
+        <div class="onboard-row"><span class="onboard-title">算法个体认证</span><span class="onboard-status">待入驻</span></div>
+        <p>完成能力认证后，可提交方案并参与佣金结算。</p>
+        <button class="side-cta" data-view="onboarding">立即入驻 · ¥299/年</button>
+      </div>
+      <div class="side-account">
+        <div class="avatar">DEMO</div>
+        <div><div class="account-name">示例开发者</div><div class="account-role">演示账号 · 个人算法开发者</div></div>
+      </div>
+    </aside>
+
+    <main class="main-shell">
+      <header class="topbar">
+        <div class="mobile-logo"><i data-lucide="orbit"></i></div>
+        <div class="breadcrumb">ScienceHelper / <strong id="current-title">工作台</strong></div>
+        <label class="global-search" aria-label="全局搜索">
+          <i data-lucide="search"></i>
+          <input id="global-search" type="search" placeholder="搜索需求、技能或案例" />
+          <span class="search-key">⌘ K</span>
+        </label>
+        <div class="top-actions">
+          <button class="icon-btn" id="notice-button" title="通知" aria-label="通知"><i data-lucide="bell"></i><span class="dot"></span></button>
+          <button class="secondary-btn auth-open" id="auth-open" data-auth-action="open"><i data-lucide="log-in"></i>登录 / 注册</button>
+          <button class="primary-btn" data-view="onboarding"><i data-lucide="badge-plus"></i>申请入驻</button>
+        </div>
+      </header>
+
+      <div class="content">
+        <section class="view active" id="view-dashboard" data-title="工作台">
+          <div class="signal-band">
+            <div class="signal-copy">
+              <div class="signal-kicker">SCIENCEHELPER · 算法协作网络</div>
+              <h1>把模型能力，变成可结算的科研成果</h1>
+              <p>匹配真实需求、提交技术方案、按里程碑交付。平台托管资金与验收，让独立算法人才专注解决问题。</p>
+              <div class="signal-actions">
+                <button class="primary-btn" data-view="market"><i data-lucide="radar"></i>浏览匹配需求</button>
+                <button class="secondary-btn" data-view="onboarding"><i data-lucide="user-round-check"></i>完成算法入驻</button>
+              </div>
+            </div>
+            <div class="income-signal">
+              <div class="label">本月预计佣金</div>
+              <div class="income-value"><small>¥</small>12,680</div>
+              <div class="income-meta"><span><strong>3</strong>进行中项目</span><span><strong>¥8,400</strong>待结算</span></div>
+            </div>
+          </div>
+
+          <div class="metric-grid">
+            <article class="metric-card"><div class="metric-top"><span class="metric-icon"><i data-lucide="scan-search"></i></span><span class="trend">+12 本周</span></div><div class="metric-number">36</div><div class="metric-label">当前开放需求</div></article>
+            <article class="metric-card"><div class="metric-top"><span class="metric-icon"><i data-lucide="badge-percent"></i></span><span class="trend">82% 匹配</span></div><div class="metric-number">8</div><div class="metric-label">高匹配需求</div></article>
+            <article class="metric-card"><div class="metric-top"><span class="metric-icon"><i data-lucide="file-clock"></i></span><span class="trend">1 待反馈</span></div><div class="metric-number">4</div><div class="metric-label">已提交方案</div></article>
+            <article class="metric-card"><div class="metric-top"><span class="metric-icon"><i data-lucide="circle-dollar-sign"></i></span><span class="trend">+18.4%</span></div><div class="metric-number">¥28.6k</div><div class="metric-label">累计佣金收入</div></article>
+          </div>
+
+          <section class="product-bridge" aria-labelledby="paperpilot-title">
+            <div class="product-bridge-copy"><span class="product-bridge-mark"><i data-lucide="orbit"></i></span><div><h2 id="paperpilot-title">PaperPilot · 科研工作区</h2><p>另一个面向科研工作的独立工作区，适合承接研究资料、实验记录与项目协作。算法平台与 PaperPilot 分工协作，按需切换。</p><div class="product-bridge-domain">www.cellbubble.cn</div></div></div>
+            <div class="product-bridge-actions"><a class="primary-btn external-link" href="https://www.cellbubble.cn" target="_blank" rel="noopener noreferrer"><i data-lucide="arrow-up-right"></i>进入 PaperPilot</a></div>
+          </section>
+
+          <div class="workspace-grid">
+            <section class="section">
+              <div class="section-head"><div><h2>为你推荐</h2><p>依据技能档案与历史交付质量匹配</p></div><button class="text-link" data-view="market">查看全部需求 →</button></div>
+              <div class="demand-list" id="dashboard-demand-list"></div>
+            </section>
+            <aside class="section">
+              <div class="section-head"><div><h2>最近动态</h2><p>方案与结算进度</p></div></div>
+              <div class="activity-panel">
+                <div class="activity-item"><span class="activity-icon"><i data-lucide="check-check"></i></span><div class="activity-copy"><p><strong>病理切片分割</strong> 第一阶段已通过验收</p><time>今天 10:42</time></div></div>
+                <div class="activity-item"><span class="activity-icon amber"><i data-lucide="coins"></i></span><div class="activity-copy"><p><strong>¥4,200</strong> 佣金已进入可提现余额</p><time>昨天 18:20</time></div></div>
+                <div class="activity-item"><span class="activity-icon blue"><i data-lucide="message-square-text"></i></span><div class="activity-copy"><p>需求方对<strong>蛋白结构预测优化</strong>发来补充说明</p><time>9 月 16 日</time></div></div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view" id="view-market" data-title="需求大厅">
+          <div class="page-head">
+            <div><div class="eyebrow">Open Briefs</div><h1>需求大厅</h1><p>从清晰的问题定义开始，找到值得投入的算法任务。</p></div>
+            <div class="page-head-actions"><button class="secondary-btn"><i data-lucide="bookmark"></i>已收藏 5</button><button class="primary-btn" data-view="onboarding"><i data-lucide="badge-plus"></i>申请接入</button></div>
+          </div>
+          <div class="filter-bar">
+            <label class="filter-search"><i data-lucide="search"></i><input id="market-search" type="search" placeholder="搜索任务名称或技术标签" /></label>
+            <label class="select-wrap"><select id="category-filter"><option value="all">全部领域</option><option value="生物信息">生物信息</option><option value="计算机视觉">计算机视觉</option><option value="自然语言">自然语言</option><option value="时序预测">时序预测</option></select><i data-lucide="chevron-down"></i></label>
+            <label class="select-wrap"><select id="budget-filter"><option value="all">全部预算</option><option value="low">¥10,000 以下</option><option value="mid">¥10,000–30,000</option><option value="high">¥30,000 以上</option></select><i data-lucide="chevron-down"></i></label>
+            <div class="view-toggle" aria-label="视图切换"><button class="active" title="卡片视图"><i data-lucide="layout-grid"></i></button><button title="列表视图"><i data-lucide="list"></i></button></div>
+          </div>
+          <div class="market-layout">
+            <aside class="filter-rail">
+              <div class="filter-group"><div class="filter-title">任务状态</div><label class="check-line"><input type="checkbox" checked /><span>开放申请</span><span>36</span></label><label class="check-line"><input type="checkbox" /><span>定向邀请</span><span>8</span></label><label class="check-line"><input type="checkbox" /><span>即将截止</span><span>5</span></label></div>
+              <div class="filter-group"><div class="filter-title">交付周期</div><label class="check-line"><input type="checkbox" /><span>7 天以内</span><span>9</span></label><label class="check-line"><input type="checkbox" /><span>8–30 天</span><span>21</span></label><label class="check-line"><input type="checkbox" /><span>30 天以上</span><span>6</span></label></div>
+              <div class="filter-group"><div class="filter-title">需求方认证</div><label class="check-line"><input type="checkbox" checked /><span>仅看已认证</span><span>31</span></label></div>
+            </aside>
+            <div><div class="market-count" id="market-count">共 6 个开放需求 · 按匹配度排序</div><div class="market-grid" id="market-grid"></div></div>
+          </div>
+        </section>
+
+        <section class="view" id="view-proposals" data-title="我的方案">
+          <div class="page-head"><div><div class="eyebrow">My Proposals</div><h1>我的方案</h1><p>跟踪每一份方案从评审、签约到交付的完整状态。</p></div><button class="primary-btn" data-view="market"><i data-lucide="plus"></i>寻找新需求</button></div>
+          <div class="proposal-table-wrap">
+            <table>
+              <thead><tr><th>需求 / 方案</th><th>报价</th><th>周期</th><th>提交时间</th><th>状态</th><th></th></tr></thead>
+              <tbody>
+                <tr><td><div class="table-title">基于多模态数据的病理切片分割</div><div class="table-sub">SH-2026-0921 · U-Net + SAM 微调方案</div></td><td class="table-money">¥18,600</td><td>21 天</td><td>09-15 14:22</td><td><span class="status-pill accepted">已入选</span></td><td><button class="table-action" title="查看详情"><i data-lucide="arrow-up-right"></i></button></td></tr>
+                <tr><td><div class="table-title">蛋白质结构预测结果的置信度校准</div><div class="table-sub">SH-2026-0917 · Ensemble calibration</div></td><td class="table-money">¥12,800</td><td>14 天</td><td>09-14 11:08</td><td><span class="status-pill review">评审中</span></td><td><button class="table-action" title="查看详情"><i data-lucide="arrow-up-right"></i></button></td></tr>
+                <tr><td><div class="table-title">医学文献关系抽取模型优化</div><div class="table-sub">SH-2026-0908 · LoRA + 知识蒸馏</div></td><td class="table-money">¥9,900</td><td>10 天</td><td>09-08 20:36</td><td><span class="status-pill draft">草稿</span></td><td><button class="table-action" title="继续编辑"><i data-lucide="pencil-line"></i></button></td></tr>
+                <tr><td><div class="table-title">设备异常振动的早期预测</div><div class="table-sub">SH-2026-0826 · Transformer 时序模型</div></td><td class="table-money">¥22,000</td><td>30 天</td><td>08-29 09:12</td><td><span class="status-pill rejected">未入选</span></td><td><button class="table-action" title="查看反馈"><i data-lucide="message-circle-more"></i></button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="view" id="view-earnings" data-title="收益中心">
+          <div class="page-head"><div><div class="eyebrow">Earnings</div><h1>收益中心</h1><p>里程碑验收后，佣金自动进入可提现余额。</p></div><button class="secondary-btn"><i data-lucide="download"></i>导出账单</button></div>
+          <div class="earnings-layout">
+            <section class="chart-panel">
+              <div class="chart-head"><div><h2>佣金趋势</h2><div class="chart-total">¥28,680 <small>近 6 个月累计</small></div></div><label class="select-wrap"><select><option>近 6 个月</option><option>本年度</option></select><i data-lucide="chevron-down"></i></label></div>
+              <div class="bar-chart"><div class="bar-item"><div class="bar" data-value="2.4k" style="height:24%"></div><span>4月</span></div><div class="bar-item"><div class="bar" data-value="3.8k" style="height:38%"></div><span>5月</span></div><div class="bar-item"><div class="bar" data-value="2.9k" style="height:29%"></div><span>6月</span></div><div class="bar-item"><div class="bar" data-value="6.2k" style="height:62%"></div><span>7月</span></div><div class="bar-item"><div class="bar" data-value="5.9k" style="height:59%"></div><span>8月</span></div><div class="bar-item"><div class="bar" data-value="7.5k" style="height:75%"></div><span>9月</span></div></div>
+              <div class="chart-legend"><span><i class="legend-dot"></i>已结算佣金</span><span>平台服务费已扣除</span></div>
+            </section>
+            <aside class="payout-panel"><h2>可提现余额</h2><div class="payout-amount">¥8,400.00</div><div class="payout-hint">预计 1–2 个工作日到账</div><div class="account-box"><div><span>收款账户</span><strong>微信零钱</strong></div><div><span>实名认证</span><strong>吴**</strong></div><div><span>本月已提现</span><strong>¥4,200.00</strong></div></div><button class="primary-btn" id="withdraw-button"><i data-lucide="hand-coins"></i>申请提现</button></aside>
+            <section class="income-ledger"><div class="section-head"><div><h2>收支明细</h2><p>最近 30 天</p></div></div><div class="proposal-table-wrap"><table><thead><tr><th>时间</th><th>项目</th><th>类型</th><th>金额</th><th>状态</th></tr></thead><tbody><tr><td>09-17 18:20</td><td class="table-title">病理切片分割 · 第一里程碑</td><td>项目佣金</td><td class="table-money">+ ¥4,200</td><td><span class="status-pill accepted">可提现</span></td></tr><tr><td>09-12 09:31</td><td class="table-title">单细胞聚类参数自动优化</td><td>项目佣金</td><td class="table-money">+ ¥3,300</td><td><span class="status-pill accepted">已结算</span></td></tr><tr><td>09-02 16:08</td><td class="table-title">提现至微信零钱</td><td>提现</td><td class="table-money">- ¥4,200</td><td><span class="status-pill draft">已到账</span></td></tr></tbody></table></div></section>
+          </div>
+        </section>
+
+        <section class="view" id="view-cases" data-title="成功案例">
+          <div class="page-head"><div><div class="eyebrow">Verified Outcomes</div><h1>成功案例</h1><p>每个结果都来自真实需求、过程留痕与需求方验收。</p></div><div class="page-head-actions"><button class="secondary-btn case-filter active" data-case="all">全部</button><button class="secondary-btn case-filter" data-case="bio">生命科学</button><button class="secondary-btn case-filter" data-case="vision">计算机视觉</button></div></div>
+          <div class="case-grid" id="case-grid">
+            <article class="case-card" data-category="bio"><div class="case-visual"><span class="visual-label">SINGLE-CELL / CLUSTER MAP</span><div class="matrix" id="matrix-visual"></div></div><div class="case-body"><div class="eyebrow">生命科学 · 单细胞</div><h3>单细胞亚群自动注释与置信度评估</h3><p>面向 12 万细胞的多批次数据，实现细胞类型自动注释与低置信样本回流。</p><div class="case-metrics"><div><strong>94.7%</strong><span>标注准确率</span></div><div><strong>6.2×</strong><span>效率提升</span></div><div><strong>21天</strong><span>交付周期</span></div></div></div></article>
+            <article class="case-card" data-category="vision"><div class="case-visual"><span class="visual-label">VISION / DEFECT SCAN</span><div class="defect-grid"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="scan-line"></div></div><div class="case-body"><div class="eyebrow">工业视觉 · 缺陷检测</div><h3>微小表面缺陷的少样本检测模型</h3><p>用合成数据与主动学习缓解标注不足，在复杂反光环境中稳定识别微裂纹。</p><div class="case-metrics"><div><strong>98.1%</strong><span>召回率</span></div><div><strong>-63%</strong><span>漏检率</span></div><div><strong>18天</strong><span>交付周期</span></div></div></div></article>
+            <article class="case-card" data-category="bio"><div class="case-visual"><span class="visual-label">PROTEIN / INTERACTION NET</span><div class="network"><i class="node"></i><i class="node"></i><i class="node"></i><i class="node"></i><i class="node"></i></div></div><div class="case-body"><div class="eyebrow">药物研发 · 图学习</div><h3>蛋白相互作用网络的候选靶点排序</h3><p>融合多源组学特征与图神经网络，为后续实验筛选提供可解释的优先级。</p><div class="case-metrics"><div><strong>0.89</strong><span>AUROC</span></div><div><strong>32%</strong><span>筛选缩减</span></div><div><strong>28天</strong><span>交付周期</span></div></div></div></article>
+          </div>
+        </section>
+
+        <section class="view" id="view-onboarding" data-title="申请入驻">
+          <div class="page-head"><div><div class="eyebrow">Provider Onboarding</div><h1>申请成为算法个体</h1><p>一次认证，长期参与平台需求撮合与佣金结算。</p></div><button class="secondary-btn" data-view="dashboard"><i data-lucide="x"></i>暂不入驻</button></div>
+          <div class="onboarding-layout">
+            <aside class="step-rail" id="step-rail">
+              <div class="step-item active" data-step-indicator="1"><span class="step-number">1</span><div class="step-copy"><strong>能力档案</strong><span>身份、方向与交付经验</span></div></div>
+              <div class="step-item" data-step-indicator="2"><span class="step-number">2</span><div class="step-copy"><strong>确认服务</strong><span>年费与平台协议</span></div></div>
+              <div class="step-item" data-step-indicator="3"><span class="step-number">3</span><div class="step-copy"><strong>微信支付</strong><span>Native 扫码完成入驻</span></div></div>
+            </aside>
+            <section class="form-panel">
+              <div class="form-head"><h2 id="form-step-title">建立能力档案</h2><p id="form-step-desc">这些信息将用于需求匹配与需求方评审。</p></div>
+              <div class="form-body">
+                <div class="form-step active" data-form-step="1">
+                  <div class="form-grid">
+                    <div class="field"><label>真实姓名 <span class="required">*</span></label><input id="real-name" value="林序" autocomplete="name" /></div>
+                    <div class="field"><label>手机号 <span class="required">*</span></label><input id="phone" value="188 0000 0000" inputmode="tel" autocomplete="tel" /></div>
+                    <div class="field"><label>个人身份</label><select id="identity"><option>独立算法开发者</option><option>高校科研人员</option><option>自由职业数据科学家</option><option>算法工作室</option></select></div>
+                    <div class="field"><label>从业年限</label><select id="experience"><option>3–5 年</option><option>1–3 年</option><option>5–8 年</option><option>8 年以上</option></select></div>
+                    <div class="field full"><label>擅长方向 <span class="required">*</span></label><div class="skill-options"><label class="skill-option"><input type="checkbox" value="计算机视觉" checked /><span>计算机视觉</span></label><label class="skill-option"><input type="checkbox" value="生物信息" checked /><span>生物信息</span></label><label class="skill-option"><input type="checkbox" value="自然语言处理" /><span>自然语言处理</span></label><label class="skill-option"><input type="checkbox" value="时序预测" /><span>时序预测</span></label><label class="skill-option"><input type="checkbox" value="优化求解" /><span>优化求解</span></label><label class="skill-option"><input type="checkbox" value="大模型应用" /><span>大模型应用</span></label></div></div>
+                    <div class="field full"><label>代表案例</label><textarea id="portfolio">负责医学影像分割与单细胞数据分析项目，擅长将研究原型工程化，最近一年完成 6 个可复现实验交付。</textarea><div class="field-hint">建议说明问题、方法与可量化结果。</div></div>
+                  </div>
+                </div>
+                <div class="form-step" data-form-step="2">
+                  <div class="review-summary"><div class="review-line"><span>申请主体</span><strong id="review-name">林序 · 独立算法开发者</strong></div><div class="review-line"><span>能力方向</span><strong id="review-skills">计算机视觉、生物信息</strong></div><div class="review-line"><span>服务域名</span><strong>www.sciencehelper.cn</strong></div></div>
+                  <div class="fee-option"><div><h3>算法个体年度接入服务</h3><p>含能力审核、需求匹配、资金托管与结算服务</p></div><div class="fee-price">¥299 <small>/ 年</small></div></div>
+                  <label class="agreement"><input id="agreement" type="checkbox" checked /><span>我已阅读并同意《算法服务方入驻协议》《平台佣金结算规则》，并确认提交的信息真实有效。</span></label>
+                </div>
+                <div class="form-step" data-form-step="3">
+                  <div class="pay-layout"><div class="qr-shell"><div id="pay-qr" role="img" aria-label="微信 Native 支付二维码"></div></div><div class="pay-info"><div class="pay-brand"><i data-lucide="scan-line"></i>微信 Native 支付</div><div class="pay-price"><small>¥</small>299.00</div><div class="pay-copy">使用微信扫描二维码完成支付。支付结果将自动回传并开通算法服务方身份。</div><div class="order-line"><span>商户订单号</span><strong id="order-id">SH202609180001</strong></div><div class="order-line"><span>商品</span><strong>算法个体年度接入服务</strong></div><div class="pay-status" id="pay-status"><span class="pulse"></span>等待支付结果</div></div></div>
+                </div>
+              </div>
+              <div class="form-footer"><button class="ghost-btn" id="step-back" hidden><i data-lucide="arrow-left"></i>上一步</button><span></span><button class="primary-btn" id="step-next">下一步 <i data-lucide="arrow-right"></i></button></div>
+            </section>
+          </div>
+        </section>
+        <footer class="site-footer">
+          <div><span>© 2026 ScienceHelper</span><span class="domain">www.sciencehelper.cn</span></div>
+          <div><span>华海丽科研WO</span><a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">粤ICP备2026020480号-5</a></div>
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <nav class="mobile-tabs" aria-label="移动端导航">
+    <button class="mobile-tab active" data-view="dashboard"><i data-lucide="layout-dashboard"></i>工作台</button>
+    <button class="mobile-tab" data-view="market"><i data-lucide="panels-top-left"></i>需求</button>
+    <button class="mobile-tab" data-view="proposals"><i data-lucide="file-check-2"></i>方案</button>
+    <button class="mobile-tab" data-view="earnings"><i data-lucide="wallet-cards"></i>收益</button>
+    <button class="mobile-tab" data-view="cases"><i data-lucide="gallery-vertical-end"></i>案例</button>
+  </nav>
+
+  <div class="communication-panel" id="communication-panel" aria-hidden="true">
+    <div class="communication-head"><div><h2>通知与交流</h2><p>及时跟进需求方反馈与项目状态</p></div><button class="icon-btn" id="communication-close" title="关闭" aria-label="关闭"><i data-lucide="x"></i></button></div>
+    <div class="communication-tabs"><button class="communication-tab active" data-communication-tab="notifications">通知 <span class="comm-count" id="notification-count">3</span></button><button class="communication-tab" data-communication-tab="messages">站内交流 <span class="comm-count" id="message-count">2</span></button></div>
+    <div class="communication-body">
+      <div class="communication-view active" id="notifications-view"><div class="comm-toolbar"><span>最近通知</span><button type="button" id="mark-notifications-read">全部标为已读</button></div><div class="notification-list" id="notification-list"></div></div>
+      <div class="communication-view" id="messages-view"><div class="message-layout" id="message-layout"><div class="thread-list" id="thread-list"></div><div class="thread-detail" id="thread-detail"><div class="thread-detail-empty">选择一个会话，开始和需求方交流</div></div></div></div>
+    </div>
+  </div>
+
+  <div class="profile-menu" id="profile-menu">
+    <div class="profile-summary"><div class="avatar" id="profile-avatar">LX</div><div><strong id="profile-name">林序</strong><span id="profile-phone">已登录 · 算法开发者</span></div></div>
+    <button class="profile-action" id="profile-account"><i data-lucide="user-round"></i>账号设置</button>
+    <button class="profile-action" id="profile-security"><i data-lucide="shield-check"></i>安全与登录</button>
+    <button class="profile-action danger" id="profile-logout"><i data-lucide="log-out"></i>退出登录</button>
+  </div>
+
+  <div class="drawer-overlay" id="detail-overlay" aria-hidden="true">
+    <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+      <div class="drawer-head"><span class="demand-id" id="drawer-id"></span><button class="icon-btn" id="drawer-close" title="关闭" aria-label="关闭"><i data-lucide="x"></i></button></div>
+      <div class="drawer-body"><span class="pill new" id="drawer-pill">开放申请</span><h1 id="drawer-title"></h1><p class="detail-summary" id="drawer-summary"></p><div class="detail-metrics"><div><span>项目预算</span><strong id="drawer-budget"></strong></div><div><span>交付周期</span><strong id="drawer-days"></strong></div><div><span>匹配度</span><strong id="drawer-match"></strong></div></div><div class="detail-block"><h3>交付目标</h3><ul><li>可复现的训练与推理代码，包含环境配置</li><li>基线对比、关键指标与误差分析报告</li><li>一次线上交付评审及两周问题修复期</li></ul></div><div class="detail-block"><h3>所需能力</h3><div class="tag-row" id="drawer-tags"></div></div><div class="detail-block"><h3>数据与合规</h3><p>需求方提供脱敏数据样本。正式签约后通过平台加密空间交付，算法服务方须遵守数据保密约定。</p></div></div>
+      <div class="drawer-foot"><button class="secondary-btn" id="save-demand"><i data-lucide="bookmark"></i>收藏</button><button class="primary-btn" id="open-proposal"><i data-lucide="send"></i>提交解决方案</button></div>
+    </aside>
+  </div>
+
+  <div class="modal-overlay" id="proposal-modal" aria-hidden="true">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="proposal-title">
+      <div class="modal-head"><div><h2 id="proposal-title">提交解决方案</h2><p id="proposal-demand-name"></p></div><button class="icon-btn" id="proposal-close" title="关闭" aria-label="关闭"><i data-lucide="x"></i></button></div>
+      <div class="modal-body"><div class="form-grid"><div class="field"><label>方案报价 <span class="required">*</span></label><input id="proposal-price" type="number" value="16800" min="1" /></div><div class="field"><label>预计周期 <span class="required">*</span></label><input id="proposal-days" type="number" value="21" min="1" /></div><div class="field full"><label>技术方案摘要 <span class="required">*</span></label><textarea id="proposal-summary" placeholder="说明核心方法、交付路径与风险控制">基于成熟基线完成数据质检与实验复现，按“基线验证—核心优化—独立测试”三个里程碑交付，并提供完整实验记录。</textarea></div><div class="field full"><label>相关经验</label><input value="已完成 3 个同类项目，可提供脱敏结果报告" /></div></div></div>
+      <div class="modal-foot"><button class="ghost-btn" id="proposal-cancel">取消</button><button class="primary-btn" id="proposal-submit"><i data-lucide="send"></i>确认提交</button></div>
+    </section>
+  </div>
+
+  <div class="modal-overlay" id="auth-modal" aria-hidden="true">
+    <section class="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+      <div class="modal-head auth-head"><div style="width:100%"><div class="auth-brand"><span class="auth-brand-mark"><i data-lucide="orbit"></i></span>ScienceHelper 账户</div><h2 id="auth-title">登录你的算法工作台</h2><p id="auth-subtitle">登录后可以提交方案、跟踪收益和管理入驻状态。</p></div><button class="icon-btn" id="auth-close" title="关闭" aria-label="关闭"><i data-lucide="x"></i></button></div>
+      <div class="auth-tabs"><button class="auth-tab active" data-auth-tab="login">登录</button><button class="auth-tab" data-auth-tab="register">注册账号</button></div>
+      <div class="modal-body">
+        <form class="auth-form active" id="login-form">
+          <div class="form-grid"><div class="field full"><label for="login-phone">手机号 / 邮箱 <span class="required">*</span></label><input id="login-phone" autocomplete="username" placeholder="请输入手机号或邮箱" /></div><div class="field full"><label for="login-password">密码 <span class="required">*</span></label><div class="password-wrap"><input id="login-password" type="password" autocomplete="current-password" placeholder="请输入 8–32 位密码" /><button class="password-toggle" type="button" data-password-target="login-password" aria-label="显示密码"><i data-lucide="eye"></i></button></div></div></div>
+          <div class="auth-options"><label class="remember"><input id="remember-login" type="checkbox" checked />记住我（30 天）</label><button class="text-link" type="button" id="forgot-password">忘记密码？</button></div><button class="primary-btn auth-submit" type="submit"><i data-lucide="log-in"></i>登录工作台</button><p class="auth-footnote">继续即表示同意 <a href="#">《用户协议》</a> 与 <a href="#">《隐私政策》</a></p>
+        </form>
+        <form class="auth-form" id="register-form">
+          <div class="form-grid"><div class="field full"><label for="register-phone">手机号 <span class="required">*</span></label><input id="register-phone" inputmode="tel" autocomplete="tel" placeholder="请输入 11 位手机号" /></div><div class="field full"><label for="register-password">设置密码 <span class="required">*</span></label><div class="password-wrap"><input id="register-password" type="password" autocomplete="new-password" placeholder="8–32 位，含字母与数字" /><button class="password-toggle" type="button" data-password-target="register-password" aria-label="显示密码"><i data-lucide="eye"></i></button></div><div class="strength" id="password-strength" data-level="0"><span>密码强度</span><span class="strength-bars"><i></i><i></i><i></i><i></i></span><span id="strength-text">未设置</span></div></div><div class="field full"><label for="register-name">显示名称</label><input id="register-name" maxlength="30" placeholder="用于需求方看到的称呼" /></div></div><label class="agreement"><input id="register-agreement" type="checkbox" /><span>我已阅读并同意《用户协议》《隐私政策》，并确认注册信息真实有效。</span></label><button class="primary-btn auth-submit" type="submit"><i data-lucide="user-round-plus"></i>创建算法账号</button>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status"><i data-lucide="circle-check"></i><span id="toast-text">操作成功</span></div>
+
+  <script>
+    const demands = [
+      { id: 'SH-2026-0921', title: '基于多模态数据的病理切片分割', category: '计算机视觉', budget: 22000, budgetText: '¥18,000–22,000', days: '21 天', deadline: '5 天后截止', match: 96, status: 'urgent', statusText: '即将截止', tags: ['PyTorch', '医学影像', '分割'], summary: '融合 HE 病理切片与临床文本信息，优化肿瘤区域分割效果，目标 Dice 不低于 0.89。' },
+      { id: 'SH-2026-0917', title: '蛋白质结构预测结果的置信度校准', category: '生物信息', budget: 15000, budgetText: '¥12,000–15,000', days: '14 天', deadline: '8 天后截止', match: 91, status: 'new', statusText: '新发布', tags: ['AlphaFold', '校准', 'Python'], summary: '对现有结构预测结果进行置信度再校准，降低不同蛋白家族之间的评分偏差，并给出可解释评估。' },
+      { id: 'SH-2026-0930', title: '小样本条件下的材料显微图像分类', category: '计算机视觉', budget: 9800, budgetText: '¥8,000–9,800', days: '10 天', deadline: '11 天后截止', match: 88, status: 'invite', statusText: '定向邀请', tags: ['Few-shot', 'OpenCV', '分类'], summary: '基于每类 30–50 张显微图像构建可增量更新的分类模型，需提供数据增强策略与误差分析。' },
+      { id: 'SH-2026-0934', title: '医学文献关系抽取模型优化', category: '自然语言', budget: 12800, budgetText: '¥9,000–12,800', days: '10 天', deadline: '13 天后截止', match: 84, status: 'new', statusText: '新发布', tags: ['LLM', '关系抽取', 'LoRA'], summary: '优化药物—靶点—疾病三元组抽取，重点提升长句与跨句关系识别，并控制推理成本。' },
+      { id: 'SH-2026-0936', title: '实验设备异常振动的早期预测', category: '时序预测', budget: 36000, budgetText: '¥28,000–36,000', days: '30 天', deadline: '16 天后截止', match: 79, status: 'new', statusText: '开放申请', tags: ['Transformer', '时序', '异常检测'], summary: '基于多通道振动传感器数据提前 30 分钟识别异常状态，兼顾误报率与边缘端推理效率。' },
+      { id: 'SH-2026-0941', title: '单细胞聚类参数自动优化工具', category: '生物信息', budget: 7600, budgetText: '¥6,000–7,600', days: '7 天', deadline: '20 天后截止', match: 76, status: 'new', statusText: '开放申请', tags: ['Scanpy', '聚类', 'AutoML'], summary: '为 Scanpy 分析流程实现可复用的聚类参数搜索模块，输出稳定性指标、推荐参数与可视化报告。' }
+    ];
+
+    const titleMap = { dashboard: '工作台', market: '需求大厅', proposals: '我的方案', earnings: '收益中心', cases: '成功案例', onboarding: '申请入驻' };
+    let activeDemand = demands[0];
+    let onboardStep = 1;
+    let authMode = 'login';
+    const sessionKey = 'sciencehelper_auth_session';
+    const communicationKey = 'sciencehelper_communication_state';
+    let activeThreadId = null;
+    const notifications = [
+      { id: 'n1', icon: 'file-clock', tone: '', title: '方案进入评审', body: '你的方案「蛋白质结构预测」已进入需求方评审环节。', time: '12 分钟前', unread: true },
+      { id: 'n2', icon: 'coins', tone: 'amber', title: '佣金已进入可提现余额', body: '病理切片分割项目第一里程碑 ¥4,200 已完成结算。', time: '昨天 18:20', unread: true },
+      { id: 'n3', icon: 'message-square-text', tone: 'blue', title: '需求方发来新消息', body: '上海材料研究院在「病理切片分割」会话中回复了你。', time: '9 月 16 日', unread: true },
+      { id: 'n4', icon: 'badge-check', tone: '', title: '能力档案已更新', body: '你的计算机视觉与生物信息技能标签已完成匹配刷新。', time: '9 月 15 日', unread: false }
+    ];
+    const defaultThreads = [
+      { id: 't1', name: '上海材料研究院', role: '病理切片分割 · 需求方', avatar: '上', time: '10:42', unread: 2, messages: [{ from: 'them', text: '你好，我们补充了一组脱敏样本，方便你确认边界情况。', time: '今天 10:31' }, { from: 'me', text: '收到，我会在方案中增加边界样本的误差分析。', time: '今天 10:36' }, { from: 'them', text: '好的，期待看到更新后的里程碑拆分。', time: '今天 10:42' }] },
+      { id: 't2', name: '星河药研实验室', role: '蛋白结构预测 · 需求方', avatar: '星', time: '昨天', unread: 1, messages: [{ from: 'them', text: '评审时希望看到不同蛋白家族的校准曲线。', time: '昨天 16:08' }] },
+      { id: 't3', name: 'ScienceHelper 服务台', role: '平台通知', avatar: 'S', time: '周一', unread: 0, messages: [{ from: 'them', text: '欢迎使用站内交流。项目沟通、交付确认和文件说明都可以在对应会话中留痕。', time: '周一 09:00' }] }
+    ];
+    let threads = (() => { try { return JSON.parse(localStorage.getItem(communicationKey)) || defaultThreads; } catch { return defaultThreads; } })();
+
+    function icon(name, size = 13) {
+      return `<i data-lucide="${name}" style="width:${size}px;height:${size}px"></i>`;
+    }
+
+    function demandRow(d) {
+      return `<article class="demand-row" data-demand-id="${d.id}" tabindex="0">
+        <div><div class="demand-title"><span class="pill ${d.status}">${d.statusText}</span><h3>${d.title}</h3></div><div class="demand-meta"><span>${icon('boxes')} ${d.category}</span><span>${icon('clock-3')} ${d.days}</span><span>${icon('tags')} ${d.tags.slice(0,2).join(' · ')}</span></div></div>
+        <div class="budget"><strong>${d.budgetText}</strong><span>含平台托管</span></div>
+        <div class="match-score"><strong>${d.match}%</strong><span>能力匹配</span></div>
+        ${icon('chevron-right', 18)}
+      </article>`;
+    }
+
+    function demandCard(d) {
+      return `<article class="demand-card" data-demand-id="${d.id}" tabindex="0">
+        <div class="demand-card-top"><span class="demand-id">${d.id}</span><span class="pill ${d.status}">${d.statusText}</span></div>
+        <h3>${d.title}</h3><p>${d.summary}</p>
+        <div class="tag-row">${d.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}</div>
+        <div class="demand-card-foot"><div class="card-budget"><span>项目预算</span><strong>${d.budgetText}</strong></div><div class="card-deadline"><strong>${d.days}</strong>${d.deadline}</div></div>
+      </article>`;
+    }
+
+    function renderDemands() {
+      document.getElementById('dashboard-demand-list').innerHTML = demands.slice(0, 3).map(demandRow).join('');
+      filterDemands();
+      bindDemandCards();
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function filterDemands() {
+      const query = document.getElementById('market-search').value.trim().toLowerCase();
+      const category = document.getElementById('category-filter').value;
+      const budget = document.getElementById('budget-filter').value;
+      const list = demands.filter(d => {
+        const matchesQuery = !query || [d.title, d.category, ...d.tags].join(' ').toLowerCase().includes(query);
+        const matchesCategory = category === 'all' || d.category === category;
+        const matchesBudget = budget === 'all' || (budget === 'low' && d.budget < 10000) || (budget === 'mid' && d.budget >= 10000 && d.budget <= 30000) || (budget === 'high' && d.budget > 30000);
+        return matchesQuery && matchesCategory && matchesBudget;
+      });
+      document.getElementById('market-count').textContent = `共 ${list.length} 个开放需求 · 按匹配度排序`;
+      document.getElementById('market-grid').innerHTML = list.length ? list.map(demandCard).join('') : `<div class="empty-state">${icon('search-x', 32)}<strong>没有符合条件的需求</strong><p>调整关键词或筛选条件后再试。</p></div>`;
+      bindDemandCards();
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function bindDemandCards() {
+      document.querySelectorAll('[data-demand-id]').forEach(el => {
+        el.onclick = () => openDemand(el.dataset.demandId);
+        el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDemand(el.dataset.demandId); } };
+      });
+    }
+
+    function openDemand(id) {
+      activeDemand = demands.find(d => d.id === id) || demands[0];
+      document.getElementById('drawer-id').textContent = activeDemand.id;
+      const pill = document.getElementById('drawer-pill');
+      pill.className = `pill ${activeDemand.status}`;
+      pill.textContent = activeDemand.statusText;
+      document.getElementById('drawer-title').textContent = activeDemand.title;
+      document.getElementById('drawer-summary').textContent = activeDemand.summary;
+      document.getElementById('drawer-budget').textContent = activeDemand.budgetText;
+      document.getElementById('drawer-days').textContent = activeDemand.days;
+      document.getElementById('drawer-match').textContent = `${activeDemand.match}%`;
+      document.getElementById('drawer-tags').innerHTML = activeDemand.tags.map(t => `<span class="tag">${t}</span>`).join('');
+      const overlay = document.getElementById('detail-overlay');
+      overlay.classList.add('open'); overlay.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeDemand() {
+      const overlay = document.getElementById('detail-overlay');
+      overlay.classList.remove('open'); overlay.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    function openProposal() {
+      closeDemand();
+      document.getElementById('proposal-demand-name').textContent = `${activeDemand.id} · ${activeDemand.title}`;
+      const modal = document.getElementById('proposal-modal');
+      modal.classList.add('open'); modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeProposal() {
+      const modal = document.getElementById('proposal-modal');
+      modal.classList.remove('open'); modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-text').textContent = message;
+      toast.classList.add('show');
+      clearTimeout(window.toastTimer);
+      window.toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
+    }
+
+    function communicationUnreadCount() {
+      return notifications.filter(item => item.unread).length + threads.reduce((sum, thread) => sum + (thread.unread || 0), 0);
+    }
+
+    function renderNotifications() {
+      const list = document.getElementById('notification-list');
+      list.innerHTML = notifications.map(item => `<article class="notification-item ${item.unread ? 'unread' : ''}" data-notification-id="${item.id}"><span class="notification-icon ${item.tone}">${icon(item.icon, 15)}</span><div class="notification-copy"><strong>${item.title}</strong><p>${item.body}</p><time>${item.time}</time></div>${item.unread ? '<span class="notification-unread"></span>' : '<span></span>'}</article>`).join('');
+      document.getElementById('notification-count').textContent = notifications.filter(item => item.unread).length || '';
+      document.getElementById('notice-button').querySelector('.dot').hidden = communicationUnreadCount() === 0;
+      list.querySelectorAll('[data-notification-id]').forEach(item => item.onclick = () => { const notice = notifications.find(entry => entry.id === item.dataset.notificationId); if (notice) notice.unread = false; renderNotifications(); showToast('通知已标为已读'); });
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function renderThreads() {
+      const list = document.getElementById('thread-list');
+      list.innerHTML = threads.map(thread => { const latest = thread.messages[thread.messages.length - 1]; return `<article class="thread-row ${activeThreadId === thread.id ? 'active' : ''}" data-thread-id="${thread.id}"><span class="thread-avatar">${escapeHtml(thread.avatar)}</span><div class="thread-row-copy"><div class="thread-row-top"><strong>${escapeHtml(thread.name)}${thread.unread ? `<span class="thread-unread">${thread.unread}</span>` : ''}</strong><time>${escapeHtml(thread.time)}</time></div><p>${escapeHtml(latest ? latest.text : '暂无消息')}</p></div></article>`; }).join('');
+      list.querySelectorAll('[data-thread-id]').forEach(item => item.onclick = () => openThread(item.dataset.threadId));
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function renderThreadDetail() {
+      const detail = document.getElementById('thread-detail');
+      const thread = threads.find(item => item.id === activeThreadId);
+      if (!thread) { detail.innerHTML = '<div class="thread-detail-empty">选择一个会话，开始和需求方交流</div>'; return; }
+      detail.innerHTML = `<div class="thread-head"><span class="thread-avatar">${escapeHtml(thread.avatar)}</span><div><strong>${escapeHtml(thread.name)}</strong><span>${escapeHtml(thread.role)}</span></div><button class="icon-btn" id="thread-back" title="返回会话列表" aria-label="返回会话列表"><i data-lucide="arrow-left"></i></button></div><div class="thread-messages" id="thread-messages">${thread.messages.map(message => `<div class="message-bubble ${message.from === 'me' ? 'mine' : ''}">${escapeHtml(message.text)}<div class="message-time">${escapeHtml(message.time)}</div></div>`).join('')}</div><form class="message-compose" id="message-compose"><textarea id="message-input" aria-label="输入消息" placeholder="写下你的回复…" maxlength="500"></textarea><button class="primary-btn" type="submit"><i data-lucide="send"></i>发送</button></form>`;
+      document.getElementById('thread-back').onclick = () => { document.getElementById('message-layout').classList.remove('thread-open'); activeThreadId = null; renderThreads(); };
+      document.getElementById('message-compose').onsubmit = event => { event.preventDefault(); const input = document.getElementById('message-input'); const text = input.value.trim(); if (!text) return; const now = new Date(); const time = `今天 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`; thread.messages.push({ from: 'me', text, time }); thread.time = '刚刚'; localStorage.setItem(communicationKey, JSON.stringify(threads)); input.value = ''; renderThreadDetail(); renderThreads(); setTimeout(() => document.getElementById('thread-messages').scrollTop = 99999, 0); showToast('消息已发送'); };
+      const messages = document.getElementById('thread-messages'); setTimeout(() => messages.scrollTop = messages.scrollHeight, 0);
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function openThread(id) {
+      activeThreadId = id;
+      const thread = threads.find(item => item.id === id);
+      if (thread) thread.unread = 0;
+      document.getElementById('message-layout').classList.add('thread-open');
+      renderThreads(); renderThreadDetail(); renderNotifications();
+    }
+
+    function switchCommunicationTab(tab) {
+      document.querySelectorAll('[data-communication-tab]').forEach(button => button.classList.toggle('active', button.dataset.communicationTab === tab));
+      document.getElementById('notifications-view').classList.toggle('active', tab === 'notifications');
+      document.getElementById('messages-view').classList.toggle('active', tab === 'messages');
+      if (tab === 'messages') { renderThreads(); if (activeThreadId) renderThreadDetail(); }
+    }
+
+    function openCommunication(tab = 'notifications') {
+      const panel = document.getElementById('communication-panel');
+      panel.classList.add('open'); panel.setAttribute('aria-hidden', 'false');
+      switchCommunicationTab(tab); document.body.style.overflow = 'hidden';
+    }
+
+    function closeCommunication() {
+      const panel = document.getElementById('communication-panel');
+      panel.classList.remove('open'); panel.setAttribute('aria-hidden', 'true'); document.body.style.overflow = '';
+    }
+
+    function setAuthMode(mode) {
+      authMode = mode;
+      document.querySelectorAll('[data-auth-tab]').forEach(tab => tab.classList.toggle('active', tab.dataset.authTab === mode));
+      document.getElementById('login-form').classList.toggle('active', mode === 'login');
+      document.getElementById('register-form').classList.toggle('active', mode === 'register');
+      document.getElementById('auth-title').textContent = mode === 'login' ? '登录你的算法工作台' : '创建算法工作台账号';
+      document.getElementById('auth-subtitle').textContent = mode === 'login' ? '登录后可以提交方案、跟踪收益和管理入驻状态。' : '注册后即可浏览需求，完成身份认证并申请入驻。';
+    }
+
+    function openAuth(mode = 'login') {
+      setAuthMode(mode);
+      document.getElementById('auth-modal').classList.add('open');
+      document.getElementById('auth-modal').setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      setTimeout(() => document.getElementById(mode === 'login' ? 'login-phone' : 'register-phone').focus(), 30);
+    }
+
+    function closeAuth() {
+      document.getElementById('auth-modal').classList.remove('open');
+      document.getElementById('auth-modal').setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    function validPhone(value) { return /^1\d{10}$/.test(value.replace(/\s/g, '')); }
+    function validAccount(value) { return value.includes('@') ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) : validPhone(value); }
+    function passwordLevel(value) {
+      if (!value) return 0;
+      let level = 0;
+      if (value.length >= 8) level++;
+      if (/[A-Za-z]/.test(value) && /\d/.test(value)) level++;
+      if (/[^A-Za-z\d]/.test(value)) level++;
+      if (value.length >= 12) level++;
+      return Math.min(level, 4);
+    }
+
+    function updatePasswordStrength() {
+      const value = document.getElementById('register-password').value;
+      const level = passwordLevel(value);
+      const strength = document.getElementById('password-strength');
+      const labels = ['未设置', '较弱', '一般', '较强', '安全'];
+      strength.dataset.level = String(level);
+      document.getElementById('strength-text').textContent = labels[level];
+    }
+
+    function refreshAuthUi() {
+      const session = JSON.parse(localStorage.getItem(sessionKey) || 'null');
+      const button = document.getElementById('auth-open');
+      const card = document.querySelector('.side-account');
+      if (session && session.loggedIn) {
+        document.getElementById('profile-name').textContent = session.name || '算法开发者';
+        document.getElementById('profile-phone').textContent = session.phone ? `${session.phone} · 已登录` : '已登录 · 算法开发者';
+        document.getElementById('profile-avatar').textContent = (session.name || '算法').slice(0, 2);
+        button.innerHTML = `${icon('user-round', 16)}<span>${session.name || '算法开发者'}</span>`;
+        button.dataset.authAction = 'profile';
+        button.title = '账户菜单';
+        if (card) card.innerHTML = `<div class="avatar">${(session.name || '算法').slice(0, 2)}</div><div><div class="account-name">${session.name || '算法开发者'}</div><div class="account-role">已登录 · 个人算法开发者</div></div>`;
+      } else {
+        document.getElementById('profile-name').textContent = '访客模式';
+        document.getElementById('profile-phone').textContent = '登录后管理方案与收益';
+        document.getElementById('profile-avatar').textContent = 'DEMO';
+        button.innerHTML = `${icon('log-in', 16)}<span>登录 / 注册</span>`;
+        button.dataset.authAction = 'open';
+        button.title = '登录 / 注册';
+        if (card) card.innerHTML = `<div class="avatar">DEMO</div><div><div class="account-name">访客模式</div><div class="account-role">登录后管理方案与收益</div></div>`;
+      }
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function loginSession(name, phone) {
+      localStorage.setItem(sessionKey, JSON.stringify({ loggedIn: true, name: name || '算法开发者', phone: phone || '', at: Date.now() }));
+      refreshAuthUi();
+      closeAuth();
+      showToast('登录成功，欢迎回来');
+    }
+
+    function switchView(name) {
+      document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
+      document.querySelectorAll('[data-view]').forEach(btn => btn.classList.toggle('active', btn.dataset.view === name && (btn.classList.contains('nav-item') || btn.classList.contains('mobile-tab'))));
+      document.getElementById('current-title').textContent = titleMap[name] || '';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (name === 'onboarding' && onboardStep === 3) makeQr();
+      history.replaceState(null, '', `#${name}`);
+    }
+
+    function updateOnboarding() {
+      document.querySelectorAll('[data-form-step]').forEach(el => el.classList.toggle('active', Number(el.dataset.formStep) === onboardStep));
+      document.querySelectorAll('[data-step-indicator]').forEach(el => {
+        const step = Number(el.dataset.stepIndicator);
+        el.classList.toggle('active', step === onboardStep);
+        el.classList.toggle('done', step < onboardStep);
+        const number = el.querySelector('.step-number');
+        number.innerHTML = step < onboardStep ? icon('check', 13) : String(step);
+      });
+      const titles = {1: ['建立能力档案', '这些信息将用于需求匹配与需求方评审。'], 2: ['确认接入服务', '核对申请信息与年度接入服务费用。'], 3: ['完成微信支付', '扫码支付后，平台将自动开通算法服务方身份。']};
+      document.getElementById('form-step-title').textContent = titles[onboardStep][0];
+      document.getElementById('form-step-desc').textContent = titles[onboardStep][1];
+      document.getElementById('step-back').hidden = onboardStep === 1;
+      document.getElementById('step-next').innerHTML = onboardStep === 1 ? `下一步 ${icon('arrow-right',16)}` : onboardStep === 2 ? `生成支付订单 ${icon('qr-code',16)}` : `模拟已支付 ${icon('badge-check',16)}`;
+      if (onboardStep === 2) {
+        const skills = [...document.querySelectorAll('.skill-option input:checked')].map(i => i.value);
+        document.getElementById('review-name').textContent = `${document.getElementById('real-name').value} · ${document.getElementById('identity').value}`;
+        document.getElementById('review-skills').textContent = skills.join('、') || '暂未选择';
+      }
+      if (onboardStep === 3) makeQr();
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function makeQr() {
+      const host = document.getElementById('pay-qr');
+      const payload = `weixin://wxpay/bizpayurl?pr=sciencehelper_${document.getElementById('order-id').textContent}`;
+      host.innerHTML = '';
+      if (window.QRCode) {
+        new QRCode(host, { text: payload, width: 190, height: 190, colorDark: '#17332f', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+      } else {
+        const canvas = document.createElement('canvas');
+        host.appendChild(canvas);
+        const ctx = canvas.getContext('2d');
+        canvas.width = 190; canvas.height = 190; ctx.fillStyle = '#17332f';
+        for (let y = 0; y < 19; y++) for (let x = 0; x < 19; x++) if ((x * 7 + y * 11 + x * y) % 5 < 2) ctx.fillRect(x * 10, y * 10, 8, 8);
+      }
+    }
+
+    function completePayment() {
+      document.getElementById('pay-status').innerHTML = `${icon('circle-check',16)} 支付成功，算法服务方身份已开通`;
+      document.getElementById('pay-status').style.color = 'var(--green)';
+      document.getElementById('step-next').innerHTML = `进入需求大厅 ${icon('arrow-right',16)}`;
+      document.getElementById('side-onboard-card').innerHTML = `<div class="onboard-row"><span class="onboard-title">算法个体认证</span><span style="color:#78df9d;font-size:11px">已入驻</span></div><p>认证有效期至 2027-09-18，可提交方案并参与佣金结算。</p><button class="side-cta" data-view="market">查看可接需求</button>`;
+      document.querySelector('#side-onboard-card [data-view]').onclick = () => switchView('market');
+      showToast('支付成功，入驻身份已开通');
+      if (window.lucide) lucide.createIcons();
+      window.paymentComplete = true;
+    }
+
+    document.querySelectorAll('[data-view]').forEach(btn => btn.addEventListener('click', () => switchView(btn.dataset.view)));
+    document.getElementById('market-search').addEventListener('input', filterDemands);
+    document.getElementById('category-filter').addEventListener('change', filterDemands);
+    document.getElementById('budget-filter').addEventListener('change', filterDemands);
+    document.getElementById('drawer-close').onclick = closeDemand;
+    document.getElementById('detail-overlay').addEventListener('click', e => { if (e.target.id === 'detail-overlay') closeDemand(); });
+    document.getElementById('open-proposal').onclick = openProposal;
+    document.getElementById('proposal-close').onclick = closeProposal;
+    document.getElementById('proposal-cancel').onclick = closeProposal;
+    document.getElementById('proposal-modal').addEventListener('click', e => { if (e.target.id === 'proposal-modal') closeProposal(); });
+    document.getElementById('proposal-submit').onclick = () => {
+      if (!document.getElementById('proposal-summary').value.trim()) return showToast('请填写技术方案摘要');
+      closeProposal(); showToast('解决方案已提交，需求方将在 3 个工作日内反馈');
+    };
+    document.getElementById('save-demand').onclick = e => { e.currentTarget.innerHTML = `${icon('bookmark-check',16)} 已收藏`; if (window.lucide) lucide.createIcons(); showToast('需求已收藏'); };
+    document.getElementById('withdraw-button').onclick = () => showToast('提现申请已提交，预计 1–2 个工作日到账');
+    document.getElementById('notice-button').onclick = e => { e.stopPropagation(); openCommunication('notifications'); };
+    document.getElementById('communication-close').onclick = closeCommunication;
+    document.querySelectorAll('[data-communication-tab]').forEach(tab => tab.onclick = () => switchCommunicationTab(tab.dataset.communicationTab));
+    document.getElementById('mark-notifications-read').onclick = () => { notifications.forEach(item => { item.unread = false; }); renderNotifications(); showToast('所有通知已标为已读'); };
+    document.getElementById('auth-open').onclick = e => {
+      e.stopPropagation();
+      if (e.currentTarget.dataset.authAction === 'profile') document.getElementById('profile-menu').classList.toggle('open'); else openAuth();
+    };
+    document.querySelectorAll('[data-auth-tab]').forEach(tab => tab.onclick = () => setAuthMode(tab.dataset.authTab));
+    document.getElementById('auth-close').onclick = closeAuth;
+    document.getElementById('auth-modal').addEventListener('click', e => { if (e.target.id === 'auth-modal') closeAuth(); });
+    document.querySelectorAll('[data-password-target]').forEach(button => button.onclick = () => {
+      const input = document.getElementById(button.dataset.passwordTarget);
+      input.type = input.type === 'password' ? 'text' : 'password';
+      button.innerHTML = icon(input.type === 'password' ? 'eye' : 'eye-off', 16);
+      if (window.lucide) lucide.createIcons();
+    });
+    document.getElementById('register-password').addEventListener('input', updatePasswordStrength);
+    document.getElementById('login-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const account = document.getElementById('login-phone').value.trim();
+      const password = document.getElementById('login-password').value;
+      if (!validAccount(account)) return showToast('请输入正确的手机号或邮箱');
+      if (password.length < 8) return showToast('密码至少需要 8 位');
+      loginSession(account.includes('@') ? account.split('@')[0] : '林序', account);
+    });
+    document.getElementById('register-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const phone = document.getElementById('register-phone').value.trim();
+      const password = document.getElementById('register-password').value;
+      const name = document.getElementById('register-name').value.trim() || '算法开发者';
+      if (!validPhone(phone)) return showToast('请输入正确的 11 位手机号');
+      if (passwordLevel(password) < 2) return showToast('密码需至少 8 位，并包含字母与数字');
+      if (!document.getElementById('register-agreement').checked) return showToast('请先同意用户协议与隐私政策');
+      loginSession(name, phone);
+    });
+    document.getElementById('forgot-password').onclick = () => showToast('请联系平台服务台重置密码');
+    document.getElementById('profile-account').onclick = () => { document.getElementById('profile-menu').classList.remove('open'); showToast('账号设置将在认证中心开放'); };
+    document.getElementById('profile-security').onclick = () => { document.getElementById('profile-menu').classList.remove('open'); showToast('安全设置将在认证中心开放'); };
+    document.getElementById('profile-logout').onclick = () => { localStorage.removeItem(sessionKey); document.getElementById('profile-menu').classList.remove('open'); refreshAuthUi(); showToast('已退出登录'); };
+    document.addEventListener('click', e => { if (!document.getElementById('communication-panel').contains(e.target) && !document.getElementById('notice-button').contains(e.target)) closeCommunication(); if (!document.getElementById('profile-menu').contains(e.target) && !document.getElementById('auth-open').contains(e.target)) document.getElementById('profile-menu').classList.remove('open'); });
+    document.getElementById('step-back').onclick = () => { onboardStep = Math.max(1, onboardStep - 1); updateOnboarding(); };
+    document.getElementById('step-next').onclick = () => {
+      if (onboardStep === 1) {
+        const skills = document.querySelectorAll('.skill-option input:checked');
+        if (!document.getElementById('real-name').value.trim() || !document.getElementById('phone').value.trim() || !skills.length) return showToast('请完整填写必填信息');
+        onboardStep = 2; updateOnboarding();
+      } else if (onboardStep === 2) {
+        if (!document.getElementById('agreement').checked) return showToast('请先同意平台协议');
+        onboardStep = 3; updateOnboarding();
+      } else if (!window.paymentComplete) completePayment(); else switchView('market');
+    };
+    document.getElementById('global-search').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && e.currentTarget.value.trim()) { switchView('market'); document.getElementById('market-search').value = e.currentTarget.value; filterDemands(); }
+    });
+    document.addEventListener('keydown', e => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); document.getElementById('global-search').focus(); }
+      if (e.key === 'Escape') { closeDemand(); closeProposal(); closeAuth(); closeCommunication(); document.getElementById('profile-menu').classList.remove('open'); }
+    });
+    document.querySelectorAll('.case-filter').forEach(btn => btn.onclick = () => {
+      document.querySelectorAll('.case-filter').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.case-card').forEach(card => card.hidden = btn.dataset.case !== 'all' && card.dataset.category !== btn.dataset.case);
+    });
+
+    const matrix = document.getElementById('matrix-visual');
+    matrix.innerHTML = Array.from({length: 54}, (_, i) => `<i style="--o:${0.16 + ((i * 17) % 80) / 100}"></i>`).join('');
+    renderDemands();
+    renderNotifications();
+    renderThreads();
+    refreshAuthUi();
+    const initialView = location.hash.slice(1);
+    if (titleMap[initialView]) switchView(initialView);
+    if (window.lucide) lucide.createIcons();
+  </script>
+</body>
+</html>
