@@ -1,0 +1,11 @@
+# Inference
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.5
+
+# Optional training (install with a CUDA/PyTorch wheel appropriate for the host)
+torch>=2.2
+transformers>=4.45
+peft>=0.13
+datasets>=2.20
+accelerate>=0.34

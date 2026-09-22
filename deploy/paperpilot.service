@@ -1,0 +1,14 @@
+[Unit]
+Description=PaperPilot research marketplace
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/paperpilot
+ExecStart=/usr/bin/node /opt/paperpilot/server.js
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

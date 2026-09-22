@@ -1,25 +1,33 @@
-# ScienceHelper 算法协作平台
+# ScienceHelper / PaperPilot
 
-> 部署说明：`www.sciencehelper.cn` 就是本算法协作平台的项目站点。登录注册、需求撮合、入驻支付与收益模块都属于同一项目。
+ScienceHelper 是面向科研人员的研究方案、文献证据、Methods 方法树、试剂采购和实验服务平台。当前版本保留研究方案工作流、PubMed 证据和方法树，并提供试剂商城、商家后台、实验服务、实验室后台和订单管理。
 
-面向独立算法人才的需求撮合、方案提交、佣金结算与付费入驻交互原型。
+## 本地运行
 
-## 本地预览
+环境要求：Node.js 18 或更高版本。
 
 ```powershell
-python -m http.server 4173
+npm install
+npm run build
+npm start
 ```
 
-然后打开 <http://localhost:4173>。
+然后打开 <http://localhost:3000>。本地配置复制 `.env.example` 为 `.env`，不要把 `.env` 或 `data/` 中的运行数据提交到仓库。
 
-## 已覆盖流程
+## 目录
 
-- 需求大厅筛选、搜索与详情查看
-- 技术方案报价与提交
-- 算法个体三步入驻
-- 微信 Native 二维码支付演示
-- 收益、提现与成功案例页面
-- 无短信验证码注册：手机号、密码与协议确认即可创建本地演示会话
-- 通知与交流中心：通知已读、需求方会话、消息发送与本地留痕
+- `src/`：React 前端源码
+- `server.js`：Node.js API 与静态资源服务
+- `research_model/`：研究网络训练、推理服务和数据处理代码
+- `ml/`：适配器训练与模型服务脚本
+- `deploy/`：systemd、Nginx 和云主机部署配置
+- `scripts/build.cjs`：前端构建脚本
 
-真实支付上线时，需要将前端演示订单替换为服务端微信支付 v3 Native 下单、签名验签、回调解密与幂等处理。
+## 验证
+
+```powershell
+node --check server.js
+npm run build
+```
+
+线上站点：<https://www.sciencehelper.cn>

@@ -1,0 +1,14 @@
+[Unit]
+Description=PaperPilot DeepSeek Adapter K1/K2 research network
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/paperpilot
+EnvironmentFile=-/opt/paperpilot/.env
+ExecStart=/root/amazinglab/.venv-vllm/bin/python -m research_model.service
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
