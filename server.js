@@ -67,6 +67,11 @@ const seed = {
   ],
   labRequests: [],
   skillRuns: [],
+  models: [
+    { id: 'model-deepseek-chat', name: 'DeepSeek Chat', version: 'v3.1', type: 'reasoning', description: '科研问题理解、研究方案拆解与采购上下文生成。', useCase: '研究问题路由', owner: '平台模型组', quality: 93, traffic: 62, calls: 842, status: 'active', evaluatedAt: '2026-09-22' },
+    { id: 'model-methods-agent', name: 'Methods Agent', version: 'v2.0', type: 'methods', description: '从开放全文中抽取实验步骤、试剂和关键参数，并保留文献证据。', useCase: 'Methods 结构化', owner: '科研智能体组', quality: 91, traffic: 28, calls: 391, status: 'active', evaluatedAt: '2026-09-21' },
+    { id: 'model-retrieval-reranker', name: 'Evidence Reranker', version: 'v0.8', type: 'retrieval', description: '对 PubMed 与 Europe PMC 结果进行相关性重排和开放全文优先筛选。', useCase: '文献检索', owner: '检索基础组', quality: 88, traffic: 10, calls: 144, status: 'canary', evaluatedAt: '2026-09-20' }
+  ],
   users: [],
   sessions: [],
   settings: { wechatQr: '' }
@@ -87,6 +92,7 @@ function readStore() {
   store.labProviders ||= seed.labProviders;
   store.labRequests ||= [];
   store.skillRuns ||= [];
+  store.models ||= seed.models;
   store.users ||= [];
   store.sessions ||= [];
   store.reagents = (store.reagents || []).map(item => ({ status: 'active', tags: [], ...item }));
@@ -152,6 +158,7 @@ function publicState(store, user) {
     labProviders: store.labProviders,
     labRequests: store.labRequests.filter(request => request.userId === user?.id || store.labProviders.find(provider => provider.id === request.labId)?.ownerUserId === user?.id),
     settings: store.settings,
+    models: store.models,
     user: publicUser(user)
   };
 }
@@ -808,6 +815,19 @@ async function route(req, res) {
     if (req.method === 'GET' && url.pathname === '/api/reagents') {
       const query = (url.searchParams.get('q') || '').toLowerCase();
       return json(res, 200, { reagents: store.reagents.filter(item => !query || `${item.name} ${item.brand} ${item.category} ${item.tags.join(' ')}`.toLowerCase().includes(query)) });
+    }
+    if (req.method === 'GET' && url.pathname === '/api/admin/models') {
+      return json(res, 200, { models: store.models || [] });
+    }
+    if (req.method === 'PATCH' && /^\/api\/admin\/models\/[^/]+$/.test(url.pathname)) {
+      const id = url.pathname.split('/').pop();
+      const model = (store.models || []).find(item => item.id === id);
+      if (!model) return json(res, 404, { error: '模型不存在' });
+      const payload = await body(req);
+      if (['active', 'paused', 'canary'].includes(payload.status)) model.status = payload.status;
+      if (payload.traffic !== undefined && Number.isFinite(Number(payload.traffic)) && Number(payload.traffic) >= 0 && Number(payload.traffic) <= 100) model.traffic = Number(payload.traffic);
+      writeStore(store);
+      return json(res, 200, { model });
     }
     if (req.method === 'GET' && url.pathname === '/api/merchant/ruijing/catalog') {
       return json(res, 200, { connected: Boolean(RUIJING_SKU_URL), source: RUIJING_SKU_URL ? '锐竞 API' : '锐竞平台样例目录', catalog: store.ruijingCatalog || [] });
