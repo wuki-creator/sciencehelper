@@ -184,6 +184,8 @@ textarea::placeholder,input::placeholder { color:#849084; opacity:1; }
 .auth-card .sub { font-size:13px; color:#7f8d77; }
 .auth-tabs { margin:28px 0; padding:4px; background:#edf1e8; }
 .auth-tabs button { font-size:12px; min-height:37px; }
+.merchant-auth-fields { display:grid; gap:0; margin-top:4px; padding-top:4px; border-top:1px solid #e5ece1; }
+.merchant-auth-fields .field { margin-top:16px; }
 .auth-card .field { margin-top:18px; }
 .field label { color:#58734e; font-size:12px; margin-bottom:8px; display:block; }
 .field input,.field textarea { width:100%; padding:12px 14px; background:#fff; border:1px solid #dce5d4; border-radius:8px; font-size:13px; color:var(--ink); }
@@ -587,6 +589,12 @@ textarea::placeholder,input::placeholder { color:#849084; opacity:1; }
 .merchant-shipment p { margin:9px 0; color:var(--ink-soft); font-size:12px; }
 .merchant-ship-form { display:flex; flex-wrap:wrap; gap:9px; margin-top:12px; }
 .merchant-ship-form input { flex:1 1 170px; min-width:0; min-height:38px; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit; }
+.merchant-join-view { max-width:980px; }
+.merchant-onboard-intro { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:0 0 18px; }
+.merchant-onboard-intro>div { display:grid; grid-template-columns:28px minmax(0,1fr); gap:3px 10px; padding:18px; background:#edf5e9; border:1px solid #dbe7d9; border-radius:10px; color:#275743; }
+.merchant-onboard-intro .app-icon { grid-row:1 / span 2; color:#4d805e; }
+.merchant-onboard-intro strong,.merchant-onboard-intro span { display:block; }.merchant-onboard-intro strong { font-size:12px; }.merchant-onboard-intro span { color:#6c806f; font-size:10px; line-height:1.6; }
+.merchant-onboard-form { padding:22px; }.merchant-profile-fields { max-width:760px; margin-bottom:20px; }.merchant-status-line { display:flex; align-items:center; gap:10px; margin-bottom:18px; color:#5e7566; font-size:11px; }
 .checkout-shipping { margin-top:18px; }
 .research-task-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
 .research-publish-row { display:flex; align-items:center; flex-wrap:wrap; gap:12px; }
@@ -653,4 +661,6 @@ textarea::placeholder,input::placeholder { color:#849084; opacity:1; }
   .admin-provider-row select,.lab-request-admin article select { min-height:44px; }
   .merchant-products .panel-head { align-items:stretch; flex-direction:column; }
   .search.compact { width:100%; }
+  .merchant-onboard-intro { grid-template-columns:1fr; }
+  .merchant-onboard-form { padding:16px; }
 }

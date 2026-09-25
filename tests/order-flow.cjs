@@ -63,9 +63,14 @@ test('research task → cart → Native payment → merchant shipment, isolated 
   };
   try {
     await waitFor(base + '/');
-    const buyer = client(), merchant = client(), stranger = client();
+    const buyer = client(), merchant = client(), stranger = client(), applicant = client();
     const buyerUser = (await buyer('/api/auth/register', 'POST', { name: '科研用户', email: 'buyer@test.local', password: 'pass-word-123' })).data.user;
-    const merchantUser = (await merchant('/api/auth/register', 'POST', { name: '商家用户', email: 'seller@test.local', password: 'pass-word-123' })).data.user;
+    assert.equal((await buyer('/api/reagents', 'POST', { name: '越权商品', price: 1, stock: 1 })).status, 403);
+    const merchantUser = (await merchant('/api/auth/merchant-register', 'POST', { name: '商家用户', email: 'seller@test.local', password: 'pass-word-123', businessName: '测试生命科学店', licenseNo: '91440300TEST12345', phone: '13800138001', address: '深圳市南山区科研路 1 号', description: '分子生物学试剂' })).data.user;
+    assert.equal(merchantUser.role, 'merchant');
+    const applicantResult = await applicant('/api/auth/register', 'POST', { name: '待入驻用户', email: 'applicant@test.local', password: 'pass-word-123' });
+    assert.equal((await applicant('/api/merchant/applications', 'POST', { businessName: '申请店铺', licenseNo: '91440300TEST54321', contactName: '待入驻用户', phone: '13800138002', address: '深圳市南山区科研路 2 号' })).status, 201);
+    assert.equal((await applicant('/api/state')).data.user.role, 'merchant');
     await stranger('/api/auth/register', 'POST', { name: '其他用户', email: 'other@test.local', password: 'pass-word-123' });
     const workflow = await buyer('/api/research/workflows', 'POST', { topic: '单细胞免疫细胞 RNA 测序实验' });
     assert.equal(workflow.status, 201, JSON.stringify(workflow.data));
@@ -122,7 +127,7 @@ test('research task → cart → Native payment → merchant shipment, isolated 
     assert.equal((await buyer(`/api/orders/${order.id}/payment`)).data.paymentStatus, 'paid');
     assert.equal((await buyer(`/api/orders/${order.id}/payment`)).data.paymentStatus, 'paid');
     assert.equal((await stranger(`/api/orders/${order.id}/payment`)).status, 404);
-    assert.equal((await buyer(`/api/merchant/orders/${order.id}/ship`, 'PATCH', { carrier: '顺丰', trackingNo: 'SF1234567890' })).status, 404);
+    assert.equal((await buyer(`/api/merchant/orders/${order.id}/ship`, 'PATCH', { carrier: '顺丰', trackingNo: 'SF1234567890' })).status, 403);
     const shipping = await merchant(`/api/merchant/orders/${order.id}/ship`, 'PATCH', { carrier: '顺丰', trackingNo: 'SF1234567890' });
     assert.equal(shipping.status, 200, JSON.stringify(shipping.data));
     assert.equal((await merchant(`/api/merchant/orders/${order.id}/ship`, 'PATCH', { carrier: '顺丰', trackingNo: 'SF1234567890' })).status, 409);

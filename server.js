@@ -76,6 +76,7 @@ const seed = {
   ],
   users: [],
   sessions: [],
+  merchantApplications: [],
   settings: { wechatQr: '' }
 };
 
@@ -98,7 +99,9 @@ function readStore() {
   store.models ||= seed.models;
   store.users ||= [];
   store.sessions ||= [];
+  store.merchantApplications ||= [];
   store.carts ||= {};
+  store.users = store.users.map(user => ({ role: 'researcher', merchantStatus: '', ...user }));
   store.reagents = (store.reagents || []).map(item => ({ status: 'active', tags: [], ...item }));
   for (const order of store.orders || []) if (order.status === '待支付' && order.expiresAt && Date.parse(order.expiresAt) < Date.now()) { order.status = '支付超时'; order.paymentStatus = 'expired'; }
   store.researchProjects = store.researchProjects.map(project => ({ ...project, papers: (project.papers || []).map(paper => ({ ...paper, title: cleanText(paper.title, 1000) })) }));
@@ -115,7 +118,7 @@ function writeStore(store) {
 
 function publicUser(user) {
   if (!user) return null;
-  return { id: user.id, name: user.name, email: user.email, createdAt: user.createdAt };
+  return { id: user.id, name: user.name, email: user.email, role: user.role || 'researcher', merchantStatus: user.merchantStatus || '', merchantProfile: user.merchantProfile || null, createdAt: user.createdAt };
 }
 
 function parseCookies(req) {
@@ -134,6 +137,25 @@ function currentUser(req, store) {
   const token = parseCookies(req).paperpilot_session;
   const session = store.sessions.find(item => item.token === token && item.expiresAt > Date.now());
   return session ? store.users.find(user => user.id === session.userId) : null;
+}
+
+function merchantAccount(user) {
+  return user?.role === 'merchant' && user.merchantStatus === 'active';
+}
+
+function merchantProfile(payload) {
+  return {
+    businessName: cleanText(payload.businessName, 160),
+    licenseNo: cleanText(payload.licenseNo, 80),
+    contactName: cleanText(payload.contactName || payload.name, 80),
+    phone: cleanText(payload.phone, 40),
+    address: cleanText(payload.address, 240),
+    description: cleanText(payload.description, 600)
+  };
+}
+
+function validMerchantProfile(profile) {
+  return Boolean(profile.businessName && profile.licenseNo && profile.contactName && /^1\d{10}$/.test(profile.phone) && profile.address.length >= 6);
 }
 
 function passwordDigest(password, salt = crypto.randomBytes(16).toString('hex')) {
@@ -167,6 +189,8 @@ function publicState(store, user) {
     publishedTasks: store.researchTasks.filter(task => task.status === '已发布' && task.visibility === 'public').slice(0, 30).map(({ id, topic, createdAt }) => ({ id, topic, createdAt })),
     labProviders: store.labProviders,
     labRequests: store.labRequests.filter(request => request.userId === user?.id || store.labProviders.find(provider => provider.id === request.labId)?.ownerUserId === user?.id),
+    merchantProfile: user.role === 'merchant' ? user.merchantProfile || null : null,
+    merchantApplication: store.merchantApplications.find(item => item.userId === user.id) || null,
     settings: { paymentEnabled: WECHAT_PAY_ENABLED },
     models: store.models,
     user: publicUser(user)
@@ -706,10 +730,27 @@ async function route(req, res) {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(res, 400, { error: '请输入有效邮箱' });
       if (password.length < 8) return json(res, 400, { error: '密码至少需要 8 位' });
       if (store.users.some(user => user.email === email)) return json(res, 409, { error: '该邮箱已注册' });
-      const user = { id: `u-${crypto.randomUUID().slice(0, 12)}`, name, email, passwordHash: passwordDigest(password), createdAt: new Date().toISOString() };
+      const user = { id: `u-${crypto.randomUUID().slice(0, 12)}`, name, email, passwordHash: passwordDigest(password), role: 'researcher', merchantStatus: '', createdAt: new Date().toISOString() };
       store.users.push(user);
       createSession(store, user, res);
       return json(res, 201, { user: publicUser(user) });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/auth/merchant-register') {
+      const payload = await body(req);
+      const name = cleanText(payload.name, 60);
+      const email = String(payload.email || '').trim().toLowerCase();
+      const password = String(payload.password || '');
+      const profile = merchantProfile(payload);
+      if (name.length < 2) return json(res, 400, { error: '联系人姓名至少需要 2 个字符' });
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(res, 400, { error: '请输入有效邮箱' });
+      if (password.length < 8) return json(res, 400, { error: '密码至少需要 8 位' });
+      if (!validMerchantProfile(profile)) return json(res, 400, { error: '请填写店铺名称、统一社会信用代码、联系人、11 位手机号和完整地址' });
+      if (store.users.some(user => user.email === email)) return json(res, 409, { error: '该邮箱已注册，请直接登录后在账户中申请商家入驻' });
+      const user = { id: `u-${crypto.randomUUID().slice(0, 12)}`, name, email, passwordHash: passwordDigest(password), role: 'merchant', merchantStatus: 'active', merchantProfile: profile, createdAt: new Date().toISOString() };
+      store.users.push(user);
+      store.merchantApplications.unshift({ id: `merchant-app-${crypto.randomUUID().slice(0, 10)}`, userId: user.id, businessName: profile.businessName, status: 'active', submittedAt: new Date().toISOString() });
+      createSession(store, user, res);
+      return json(res, 201, { user: publicUser(user), application: store.merchantApplications[0] });
     }
     if (req.method === 'POST' && url.pathname === '/api/auth/login') {
       const payload = await body(req);
@@ -739,6 +780,28 @@ async function route(req, res) {
     const user = currentUser(req, store);
     if (req.method === 'GET' && url.pathname === '/api/me') return user ? json(res, 200, { user: publicUser(user) }) : json(res, 401, { error: '请先登录' });
     if (!user && url.pathname !== '/api/wechat/notify') return json(res, 401, { error: '请先登录或注册' });
+    if (req.method === 'POST' && url.pathname === '/api/merchant/applications') {
+      if (merchantAccount(user)) return json(res, 200, { user: publicUser(user), application: store.merchantApplications.find(item => item.userId === user.id) || null });
+      const payload = await body(req);
+      const profile = merchantProfile(payload);
+      if (!validMerchantProfile(profile)) return json(res, 400, { error: '请填写店铺名称、统一社会信用代码、联系人、11 位手机号和完整地址' });
+      user.role = 'merchant'; user.merchantStatus = 'active'; user.merchantProfile = profile;
+      const application = { id: `merchant-app-${crypto.randomUUID().slice(0, 10)}`, userId: user.id, businessName: profile.businessName, status: 'active', submittedAt: new Date().toISOString() };
+      store.merchantApplications = store.merchantApplications.filter(item => item.userId !== user.id);
+      store.merchantApplications.unshift(application); writeStore(store);
+      return json(res, 201, { user: publicUser(user), application });
+    }
+    if (req.method === 'PATCH' && url.pathname === '/api/merchant/profile') {
+      if (!merchantAccount(user)) return json(res, 403, { error: '请先完成商家入驻' });
+      const profile = merchantProfile({ ...user.merchantProfile, ...(await body(req)) });
+      if (!validMerchantProfile(profile)) return json(res, 400, { error: '请填写店铺名称、统一社会信用代码、联系人、11 位手机号和完整地址' });
+      user.merchantProfile = profile;
+      const application = store.merchantApplications.find(item => item.userId === user.id);
+      if (application) { application.businessName = profile.businessName; application.updatedAt = new Date().toISOString(); }
+      writeStore(store); return json(res, 200, { profile });
+    }
+    const merchantOnly = url.pathname.startsWith('/api/merchant/ruijing/') || /^\/api\/merchant\/orders\/[^/]+\/ship$/.test(url.pathname) || (url.pathname === '/api/reagents' && req.method === 'POST') || (/^\/api\/reagents\/[^/]+$/.test(url.pathname) && ['PATCH', 'DELETE'].includes(req.method));
+    if (merchantOnly && !merchantAccount(user)) return json(res, 403, { error: '商家账户才能管理商品和订单，请先完成商家入驻' });
     if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, publicState(store, user));
     if (req.method === 'GET' && url.pathname === '/api/research/network') {
       try { return json(res, 200, await getResearchNetwork('/v1/model-info')); }
