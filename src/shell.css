@@ -586,10 +586,13 @@ textarea::placeholder,input::placeholder { color:#849084; opacity:1; }
 .checkout-shipping { margin-top:18px; }
 .research-task-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
 .research-publish-row { display:flex; align-items:center; flex-wrap:wrap; gap:12px; }
+.task-visibility { display:inline-flex; align-items:center; gap:8px; font-size:13px; line-height:1.5; cursor:pointer; }
+.task-visibility input { width:17px; height:17px; flex:none; }
 .research-task-list { margin:18px 0; padding:16px 20px; border:1px solid var(--line); border-radius:12px; background:var(--panel,#fff); }
 .research-task-list>strong { display:block; margin-bottom:10px; }
 .research-task-list>div { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; padding:9px 0; border-top:1px solid var(--line); overflow-wrap:anywhere; }
 .research-task-list>div>span { min-width:0; flex:1; }
+.research-task-list select { min-height:38px; max-width:100%; border:1px solid var(--line); border-radius:8px; background:#fff; padding:7px 9px; font:inherit; }
 .checkout-task { margin-top:16px; }
 .payment-qr { margin-top:18px; display:flex; flex-wrap:wrap; justify-content:center; gap:16px; }
 .payment-qr img { width:220px; height:220px; object-fit:contain; background:white; }

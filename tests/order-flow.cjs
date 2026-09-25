@@ -24,7 +24,7 @@ async function waitFor(url) {
 }
 
 test('research task → cart → Native payment → merchant shipment, isolated by user', async () => {
-  let paid = false, unified = null;
+  let paid = false, unified = null, failUnifiedOnce = false;
   const mock = http.createServer(async (req, res) => {
     if (req.url.startsWith('/europe/search')) {
       res.setHeader('Content-Type', 'application/json');
@@ -35,12 +35,13 @@ test('research task → cart → Native payment → merchant shipment, isolated 
     if (req.url === '/pay/unifiedorder') {
       assert.equal(input.trade_type, 'NATIVE');
       assert.equal(input.sign, sign(input));
+      if (failUnifiedOnce) { failUnifiedOnce = false; return res.writeHead(502).end('Temporary payment gateway failure'); }
       unified = input;
       const result = { return_code: 'SUCCESS', result_code: 'SUCCESS', appid: input.appid, mch_id: input.mch_id, nonce_str: 'mocknonce', code_url: 'weixin://wxpay/bizpayurl?pr=mock123' };
       return res.end(xml({ ...result, sign: sign(result) }));
     }
     if (req.url === '/pay/orderquery') {
-      const result = { return_code: 'SUCCESS', result_code: 'SUCCESS', appid: input.appid, mch_id: input.mch_id, nonce_str: 'mocknonce', trade_state: paid ? 'SUCCESS' : 'NOTPAY', total_fee: unified.total_fee, transaction_id: paid ? 'wx-test-transaction' : '' };
+      const result = { return_code: 'SUCCESS', result_code: 'SUCCESS', appid: input.appid, mch_id: input.mch_id, nonce_str: 'mocknonce', out_trade_no: input.out_trade_no, trade_state: paid ? 'SUCCESS' : 'NOTPAY', total_fee: unified.total_fee, transaction_id: paid ? 'wx-test-transaction' : '' };
       return res.end(xml({ ...result, sign: sign(result) }));
     }
     res.writeHead(404).end();
@@ -76,6 +77,10 @@ test('research task → cart → Native payment → merchant shipment, isolated 
     const directTask = await stranger('/api/research/tasks', 'POST', { topic: '直接发布的科研采购任务' });
     assert.equal(directTask.status, 201);
     assert.equal(directTask.data.task.projectId, '');
+    assert.equal(directTask.data.task.visibility, 'private');
+    assert.ok(!(await buyer('/api/state')).data.publishedTasks.some(item => item.id === directTask.data.task.id));
+    assert.equal((await buyer(`/api/research/tasks/${directTask.data.task.id}`, 'PATCH', { visibility: 'public' })).status, 404);
+    assert.equal((await stranger(`/api/research/tasks/${directTask.data.task.id}`, 'PATCH', { visibility: 'public' })).status, 200);
     assert.ok((await buyer('/api/state')).data.publishedTasks.some(item => item.id === directTask.data.task.id));
     assert.equal((await buyer('/api/cart', 'POST', { reagentId: 'r-001', quantity: 1 })).status, 409);
     const product = await merchant('/api/reagents', 'POST', { name: 'RNA 检测试剂盒', price: 199, stock: 3, seller: '测试商家' });
@@ -86,11 +91,15 @@ test('research task → cart → Native payment → merchant shipment, isolated 
     assert.equal((await stranger('/api/state')).data.cart.length, 0);
     assert.equal((await merchant('/api/state')).data.researchProjects.length, 0);
     assert.equal((await buyer('/api/orders/prepare-payment', 'POST', { reagentIds: [product.data.id] })).status, 400);
-    const checkout = await buyer('/api/orders/prepare-payment', 'POST', { reagentIds: [product.data.id], taskId: task.data.task.id, recipient: '测试收件人', phone: '13800138000', address: '深圳市南山区科研路 100 号' });
+    const checkoutPayload = { reagentIds: [product.data.id], taskId: task.data.task.id, recipient: '测试收件人', phone: '13800138000', address: '深圳市南山区科研路 100 号' };
+    failUnifiedOnce = true;
+    assert.equal((await buyer('/api/orders/prepare-payment', 'POST', checkoutPayload)).status, 502);
+    const checkout = await buyer('/api/orders/prepare-payment', 'POST', checkoutPayload);
     assert.equal(checkout.status, 201, JSON.stringify(checkout.data));
     const order = checkout.data.order;
     assert.equal(order.userId, buyerUser.id);
     assert.equal(order.taskId, task.data.task.id);
+    assert.equal((await buyer('/api/orders/prepare-payment', 'POST', { reagentIds: [product.data.id], recipient: '测试收件人', phone: '13800138000', address: '深圳市南山区科研路 100 号' })).status, 409);
     assert.match(order.payment.qrUrl, /^data:image\/png;base64,/);
     assert.ok(Date.parse(order.expiresAt) > Date.now());
     const shanghaiExpiration = new Date(Date.parse(order.expiresAt) + 8 * 3600000).toISOString().slice(0, 19).replace(/[-:T]/g, '');
@@ -101,6 +110,14 @@ test('research task → cart → Native payment → merchant shipment, isolated 
     const badNotify = await fetch(base + '/api/wechat/notify', { method: 'POST', body: xml({ out_trade_no: order.outTradeNo, sign: 'INVALID' }) });
     assert.match(await badNotify.text(), /FAIL/);
     assert.equal((await buyer(`/api/orders/${order.id}/payment`)).data.paymentStatus, 'pending');
+    const wrongAmount = { return_code: 'SUCCESS', result_code: 'SUCCESS', appid: unified.appid, mch_id: unified.mch_id, out_trade_no: order.outTradeNo, total_fee: '1', transaction_id: 'wx-test-transaction' };
+    const rejected = await fetch(base + '/api/wechat/notify', { method: 'POST', body: xml({ ...wrongAmount, sign: sign(wrongAmount) }) });
+    assert.match(await rejected.text(), /FAIL/);
+    const valid = { ...wrongAmount, total_fee: unified.total_fee };
+    for (let i = 0; i < 2; i++) {
+      const notify = await fetch(base + '/api/wechat/notify', { method: 'POST', body: xml({ ...valid, sign: sign(valid) }) });
+      assert.match(await notify.text(), /SUCCESS/);
+    }
     paid = true;
     assert.equal((await buyer(`/api/orders/${order.id}/payment`)).data.paymentStatus, 'paid');
     assert.equal((await buyer(`/api/orders/${order.id}/payment`)).data.paymentStatus, 'paid');

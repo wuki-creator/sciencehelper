@@ -28,6 +28,8 @@ npm start
 - `scripts/generate-bio-query-catalog.cjs`：可复现生成上述目录的脚本
 - `scripts/resolve-open-access-pdfs.cjs`：按 Europe PMC 开放获取结果解析每条 query 的实际 PDF 地址（需联网运行，避免伪造链接）
 - `scripts/fetch-bio-literature-topics.cjs`：从 Europe PMC 分页抓取文献标题并生成课题描述；默认生成 20,000 条，可通过 `--count`、`--pageSize` 和 `--output` 调整
+- `docs/sciencehelper-prd-v1.md`：科研任务、Native 支付、试剂采购与商家履约的页面级 PRD 和验收边界
+- `docs/sciencehelper-growth-operations-2026.md`：受控试点、供给和渠道增长的运营方案；5 万用户是待验证目标
 
 ## 20,000 条文献课题目录
 
@@ -52,11 +54,14 @@ node scripts/fetch-bio-literature-topics.cjs `
 
 后台入口当前沿用现有登录会话；生产环境应继续接入独立的管理员角色、审计日志和权限策略。文献目录中的 URL 是检索或开放全文筛选入口，平台在展示可下载 PDF 前应再次校验开放获取和授权状态。
 
+科研任务默认仅创建者可见，主动选择公开才展示课题描述。商城历史样例商品未绑定履约商家时不可在线购买。Native 支付必须由微信回调或查询确认，不能通过用户手动点击完成付款。
+
 ## 验证
 
 ```powershell
 node --check server.js
 npm run build
+node --test tests/order-flow.cjs
 ```
 
 线上站点：<https://www.sciencehelper.cn>

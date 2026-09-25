@@ -108,7 +108,9 @@ function readStore() {
 }
 
 function writeStore(store) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2));
+  const temporary = `${DATA_FILE}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, JSON.stringify(store, null, 2));
+  fs.renameSync(temporary, DATA_FILE);
 }
 
 function publicUser(user) {
@@ -162,7 +164,7 @@ function publicState(store, user) {
     ruijingCatalog: store.ruijingCatalog,
     researchProjects: store.researchProjects.filter(project => project.createdBy === user.id),
     researchTasks: store.researchTasks.filter(task => task.userId === user.id),
-    publishedTasks: store.researchTasks.filter(task => task.status === '已发布').slice(0, 30).map(({ id, topic, createdAt }) => ({ id, topic, createdAt })),
+    publishedTasks: store.researchTasks.filter(task => task.status === '已发布' && task.visibility === 'public').slice(0, 30).map(({ id, topic, createdAt }) => ({ id, topic, createdAt })),
     labProviders: store.labProviders,
     labRequests: store.labRequests.filter(request => request.userId === user?.id || store.labProviders.find(provider => provider.id === request.labId)?.ownerUserId === user?.id),
     settings: { paymentEnabled: WECHAT_PAY_ENABLED },
@@ -792,10 +794,19 @@ async function route(req, res) {
       if (payload.projectId && !project) return json(res, 404, { error: '研究方案不存在或不属于当前用户' });
       const topic = project?.topic || cleanText(payload.topic, 1200);
       if (topic.length < 4) return json(res, 400, { error: '请填写至少 4 个字符的科研任务描述' });
+      if (payload.visibility !== undefined && !['private', 'public'].includes(payload.visibility)) return json(res, 400, { error: '任务公开范围无效' });
       const existing = project && store.researchTasks.find(item => item.projectId === project.id && item.userId === user.id);
       if (existing) return json(res, 200, { task: existing });
-      const task = { id: `task-${crypto.randomUUID().slice(0, 10)}`, projectId: project?.id || '', userId: user.id, topic, status: '已发布', createdAt: new Date().toISOString() };
+      const task = { id: `task-${crypto.randomUUID().slice(0, 10)}`, projectId: project?.id || '', userId: user.id, topic, visibility: payload.visibility || 'private', status: '已发布', createdAt: new Date().toISOString() };
       store.researchTasks.unshift(task); writeStore(store); return json(res, 201, { task });
+    }
+    if (req.method === 'PATCH' && /^\/api\/research\/tasks\/[^/]+$/.test(url.pathname)) {
+      const task = store.researchTasks.find(item => item.id === url.pathname.split('/')[4] && item.userId === user.id);
+      if (!task) return json(res, 404, { error: '任务不存在或无权操作' });
+      const payload = await body(req);
+      if (!['private', 'public'].includes(payload.visibility)) return json(res, 400, { error: '任务公开范围无效' });
+      task.visibility = payload.visibility;
+      task.updatedAt = new Date().toISOString(); writeStore(store); return json(res, 200, { task });
     }
     if (req.method === 'POST' && url.pathname === '/api/lab/providers') {
       const payload = await body(req);
@@ -907,7 +918,7 @@ async function route(req, res) {
     if (req.method === 'POST' && url.pathname === '/api/reagents') {
       const payload = await body(req);
       const reagent = { id: `r-${crypto.randomUUID().slice(0, 8)}`, name: payload.name, brand: payload.brand || '未填写品牌', category: payload.category || '其他', spec: payload.spec || '按包装', price: Number(payload.price || 0), stock: Number(payload.stock || 0), seller: payload.seller || '我的店铺', rating: 5, tags: ['新上架'], color: '#9ae6b4', status: 'active', ownerUserId: user.id };
-      if (!cleanText(reagent.name, 200) || !Number.isFinite(reagent.price) || reagent.price <= 0 || !Number.isInteger(reagent.stock) || reagent.stock < 0) return json(res, 400, { error: '请填写试剂名称、有效价格和库存' });
+      if (!cleanText(reagent.name, 200) || !Number.isFinite(reagent.price) || !Number.isInteger(reagent.price * 100) || reagent.price <= 0 || !Number.isInteger(reagent.stock) || reagent.stock < 0) return json(res, 400, { error: '请填写试剂名称、精确到分的价格和有效库存' });
       store.reagents.unshift(reagent); writeStore(store); return json(res, 201, reagent);
     }
     if (req.method === 'PATCH' && /^\/api\/reagents\/[^/]+$/.test(url.pathname)) {
@@ -917,7 +928,11 @@ async function route(req, res) {
       if (reagent.ownerUserId !== user.id) return json(res, 403, { error: '只能管理自己的商品' });
       const payload = await body(req);
       for (const key of ['name', 'brand', 'category', 'spec', 'seller']) if (payload[key] !== undefined) reagent[key] = cleanText(payload[key], 200);
-      if (payload.price !== undefined && Number.isFinite(Number(payload.price)) && Number(payload.price) >= 0) reagent.price = Number(payload.price);
+      if (payload.price !== undefined) {
+        const price = Number(payload.price);
+        if (!Number.isFinite(price) || !Number.isInteger(price * 100) || price <= 0) return json(res, 400, { error: '价格必须大于零且精确到分' });
+        reagent.price = price;
+      }
       if (payload.stock !== undefined && Number.isInteger(Number(payload.stock)) && Number(payload.stock) >= 0) reagent.stock = Number(payload.stock);
       if (['active', 'inactive'].includes(payload.status)) reagent.status = payload.status;
       writeStore(store); return json(res, 200, reagent);
@@ -958,9 +973,12 @@ async function route(req, res) {
     }
     if (req.method === 'POST' && url.pathname === '/api/orders/prepare-payment') {
       if (!WECHAT_PAY_ENABLED) return json(res, 503, { error: '微信 Native 支付暂未开通，请稍后再试' });
-      if (pendingCheckouts.has(user.id)) return json(res, 409, { error: '订单正在创建，请勿重复提交' });
       const payload = await body(req); const reagentIds = Array.isArray(payload.reagentIds) ? payload.reagentIds : []; const { items, total } = orderLines(store, user, reagentIds);
+      if (pendingCheckouts.has(user.id)) return json(res, 409, { error: '订单正在创建，请勿重复提交' });
+      const existingOrder = store.orders.find(order => order.userId === user.id && order.paymentStatus === 'pending' && Date.parse(order.expiresAt || 0) > Date.now());
+      if (existingOrder) return json(res, 409, { error: `已有待支付订单 ${existingOrder.id}，请到购买记录继续扫码或等待过期` });
       if (!items.length) return json(res, 400, { error: '购物清单为空' });
+      if (!Number.isSafeInteger(Math.round(total * 100)) || total <= 0) return json(res, 400, { error: '订单金额无效，请联系商家核对价格' });
       if (items.some(item => !item.reagent.ownerUserId)) return json(res, 409, { error: '部分商品尚未绑定履约商家，不能生成支付订单' });
       if (items.some(item => item.quantity > availableStock(store, item.reagentId))) return json(res, 409, { error: '部分商品库存不足，请刷新购物清单' });
       const shipping = { recipient: cleanText(payload.recipient, 80), phone: cleanText(payload.phone, 40), address: cleanText(payload.address, 400) };
@@ -970,10 +988,20 @@ async function route(req, res) {
       const outTradeNo = `PP${Date.now()}${crypto.randomBytes(3).toString('hex')}`.slice(0, 32);
       let payment;
       pendingCheckouts.add(user.id);
-      try { payment = await createWechatNativeOrder(outTradeNo, Math.round(total * 100), `PaperPilot 试剂订单 ${id}`); } catch (error) { console.error('Wechat native order failed:', error.message); return json(res, 502, { error: '微信 Native 下单失败，请稍后重试' }); } finally { pendingCheckouts.delete(user.id); }
+      try { payment = await createWechatNativeOrder(outTradeNo, Math.round(total * 100), `PaperPilot 试剂订单 ${id}`); } catch (error) { pendingCheckouts.delete(user.id); console.error('Wechat native order failed:', error.message); return json(res, 502, { error: '微信 Native 下单失败，请稍后重试' }); }
+      try {
+      const latest = readStore();
+      const currentItems = orderLines(latest, user, reagentIds).items;
+      if (currentItems.length !== items.length || currentItems.some(item => {
+        const initial = items.find(entry => entry.reagentId === item.reagentId);
+        return !initial || item.quantity !== initial.quantity || item.reagent.price !== initial.reagent.price || item.reagent.ownerUserId !== initial.reagent.ownerUserId || item.quantity > availableStock(latest, item.reagentId);
+      })) {
+        return json(res, 409, { error: '下单期间商品价格或库存发生变化，请刷新购物清单后重试' });
+      }
       const fulfillments = [...new Set(items.map(item => item.reagent.ownerUserId).filter(Boolean))].map(merchantId => ({ merchantId, status: '待确认', items: items.filter(item => item.reagent.ownerUserId === merchantId).map(item => ({ reagentId: item.reagentId, name: item.reagent.name, spec: item.reagent.spec, quantity: item.quantity })) }));
       const order = { id, userId: user.id, taskId: task?.id || '', shipping, status: '待支付', paymentStatus: 'pending', expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), outTradeNo, payment: { mode: payment.mode, qrUrl: payment.qrUrl }, items: items.map(item => ({ reagentId: item.reagentId, name: item.reagent.name, unitPrice: item.reagent.price, quantity: item.quantity })), fulfillments, total, itemCount: items.reduce((sum, item) => sum + item.quantity, 0), createdAt: new Date().toISOString(), seller: fulfillments.length === 1 ? items.find(item => item.reagent.ownerUserId === fulfillments[0].merchantId).reagent.seller : '多供应商订单' };
-      store.orders.unshift(order); writeStore(store); return json(res, 201, { order, payment });
+      latest.orders.unshift(order); writeStore(latest); return json(res, 201, { order, payment });
+      } finally { pendingCheckouts.delete(user.id); }
     }
     if (req.method === 'GET' && /^\/api\/orders\/[^/]+\/payment$/.test(url.pathname)) {
       const order = store.orders.find(item => item.id === url.pathname.split('/')[3] && item.userId === user.id);
@@ -981,17 +1009,23 @@ async function route(req, res) {
       if (['pending', 'expired'].includes(order.paymentStatus) && order.payment?.mode === 'wechat-native' && WECHAT_PAY_ENABLED) {
         try {
           const result = await wechatRequest('/pay/orderquery', { appid: WECHAT_APPID, mch_id: WECHAT_MCHID, out_trade_no: order.outTradeNo, nonce_str: crypto.randomBytes(16).toString('hex') });
-          if (result.trade_state === 'SUCCESS' && result.appid === WECHAT_APPID && result.mch_id === WECHAT_MCHID && Number(result.total_fee) === Math.round(order.total * 100)) markOrderPaid(store, order, result.transaction_id);
+          if (result.trade_state === 'SUCCESS' && result.appid === WECHAT_APPID && result.mch_id === WECHAT_MCHID && result.out_trade_no === order.outTradeNo && result.transaction_id && Number(result.total_fee) === Math.round(order.total * 100)) {
+            const latest = readStore(); const current = latest.orders.find(item => item.id === order.id);
+            if (current) markOrderPaid(latest, current, result.transaction_id);
+          }
         } catch (error) { console.error('Wechat payment query failed:', error.message); return json(res, 502, { error: '暂时无法向微信核对付款，请稍后重试' }); }
       }
-      return json(res, 200, { id: order.id, status: order.status, paymentStatus: order.paymentStatus, payment: order.payment });
+      const current = readStore().orders.find(item => item.id === order.id) || order;
+      return json(res, 200, { id: current.id, status: current.status, paymentStatus: current.paymentStatus, payment: current.payment });
     }
     if (req.method === 'POST' && url.pathname === '/api/wechat/notify') {
       const raw = await new Promise((resolve, reject) => { let value = ''; req.on('data', chunk => { value += chunk; if (value.length > 65536) req.destroy(); }); req.on('end', () => resolve(value)); req.on('error', reject); });
       res.setHeader('Content-Type', 'application/xml; charset=utf-8');
       const values = xmlFields(raw); const order = store.orders.find(item => item.outTradeNo === values.out_trade_no);
       if (!WECHAT_PAY_ENABLED || !values.sign || wechatV2Sign(values) !== values.sign || !order || order.payment?.mode !== 'wechat-native' || values.appid !== WECHAT_APPID || values.mch_id !== WECHAT_MCHID || Number(values.total_fee) !== Math.round(order.total * 100) || values.return_code !== 'SUCCESS' || values.result_code !== 'SUCCESS' || !values.transaction_id) return res.end(xmlFromObject({ return_code: 'FAIL', return_msg: '订单或签名无效' }));
-      markOrderPaid(store, order, values.transaction_id);
+      const latest = readStore(); const current = latest.orders.find(item => item.id === order.id);
+      if (!current) return res.end(xmlFromObject({ return_code: 'FAIL', return_msg: '订单不存在' }));
+      markOrderPaid(latest, current, values.transaction_id);
       return res.end(xmlFromObject({ return_code: 'SUCCESS', return_msg: 'OK' }));
     }
     if (req.method === 'POST' && url.pathname === '/api/orders/confirm-payment') return json(res, 410, { error: '已停用手动确认，请等待微信支付通知或查询支付状态' });
