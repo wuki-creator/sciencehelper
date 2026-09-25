@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const QRCode = require('qrcode');
 
 const ROOT = __dirname;
 const DATA_DIR = process.env.PAPERPILOT_DATA_DIR || path.join(ROOT, 'data');
@@ -27,6 +28,7 @@ const RESEARCH_MODEL_URL = (process.env.RESEARCH_MODEL_URL || 'http://127.0.0.1:
 const DEEPSEEK_BASE_URL = (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1').replace(/\/$/, '');
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
 const EUROPE_PMC_URL = (process.env.EUROPE_PMC_URL || 'https://www.ebi.ac.uk/europepmc/webservices/rest').replace(/\/$/, '');
+const pendingCheckouts = new Set();
 
 const seed = {
   reagents: [
@@ -89,13 +91,16 @@ function readStore() {
   store.knowledgeBase ||= seed.knowledgeBase;
   store.ruijingCatalog ||= seed.ruijingCatalog;
   store.researchProjects ||= [];
+  store.researchTasks ||= [];
   store.labProviders ||= seed.labProviders;
   store.labRequests ||= [];
   store.skillRuns ||= [];
   store.models ||= seed.models;
   store.users ||= [];
   store.sessions ||= [];
+  store.carts ||= {};
   store.reagents = (store.reagents || []).map(item => ({ status: 'active', tags: [], ...item }));
+  for (const order of store.orders || []) if (order.status === '待支付' && order.expiresAt && Date.parse(order.expiresAt) < Date.now()) { order.status = '支付超时'; order.paymentStatus = 'expired'; }
   store.researchProjects = store.researchProjects.map(project => ({ ...project, papers: (project.papers || []).map(paper => ({ ...paper, title: cleanText(paper.title, 1000) })) }));
   const now = Date.now();
   store.sessions = store.sessions.filter(session => session.expiresAt > now);
@@ -151,13 +156,15 @@ function createSession(store, user, res) {
 function publicState(store, user) {
   return {
     reagents: store.reagents,
-    cart: store.cart,
-    orders: store.orders,
+    cart: store.carts[user.id] || [],
+    orders: store.orders.filter(order => order.userId === user.id),
+    merchantOrders: store.orders.filter(order => (order.fulfillments || []).some(group => group.merchantId === user.id)).map(order => ({ id: order.id, status: order.status, paymentStatus: order.paymentStatus, createdAt: order.createdAt, shipping: order.paymentStatus === 'paid' ? order.shipping : null, fulfillments: order.fulfillments.filter(group => group.merchantId === user.id) })),
     ruijingCatalog: store.ruijingCatalog,
-    researchProjects: store.researchProjects,
+    researchProjects: store.researchProjects.filter(project => project.createdBy === user.id),
+    researchTasks: store.researchTasks.filter(task => task.userId === user.id),
     labProviders: store.labProviders,
     labRequests: store.labRequests.filter(request => request.userId === user?.id || store.labProviders.find(provider => provider.id === request.labId)?.ownerUserId === user?.id),
-    settings: store.settings,
+    settings: { paymentEnabled: WECHAT_PAY_ENABLED },
     models: store.models,
     user: publicUser(user)
   };
@@ -171,18 +178,33 @@ function xmlFromObject(values) {
   return `<xml>${Object.entries(values).map(([key, value]) => `<${key}><![CDATA[${String(value)}]]></${key}>`).join('')}</xml>`;
 }
 
-function xmlValue(xml, key) {
-  const value = String(xml).match(new RegExp(`<${key}>(?:<!\\[CDATA\\[)?(.*?)(?:\\]\\]>)?<\\/${key}>`));
-  return value?.[1] || '';
-}
-
 function wechatV2Sign(values) {
-  const content = Object.entries(values).filter(([key, value]) => key !== 'sign' && value !== undefined && value !== null && String(value) !== '').sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => `${key}=${value}`).join('&');
+  const content = Object.entries(values).filter(([key, value]) => key !== 'sign' && value !== undefined && value !== null && String(value) !== '').sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, value]) => `${key}=${value}`).join('&');
   return crypto.createHash('md5').update(`${content}&key=${WECHAT_API_V2_KEY}`).digest('hex').toUpperCase();
 }
 
+function xmlFields(xml) {
+  const values = {};
+  for (const match of String(xml).matchAll(/<([a-z][a-z0-9_]*)>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/\1>/gi)) values[match[1]] = match[2] ?? match[3];
+  return values;
+}
+
+function wechatTime(date) {
+  // WeChat Pay V2 expects Asia/Shanghai wall-clock time, not UTC.
+  return new Date(date.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 19).replace(/[-:T]/g, '');
+}
+
+async function wechatRequest(pathname, params) {
+  params.sign = wechatV2Sign(params);
+  const response = await fetch(`${process.env.WECHAT_PAY_API_BASE || 'https://api.mch.weixin.qq.com'}${pathname}`, { method: 'POST', headers: { 'Content-Type': 'application/xml; charset=utf-8' }, body: xmlFromObject(params), signal: AbortSignal.timeout(12000) });
+  const values = xmlFields(await response.text());
+  if (!response.ok || values.return_code !== 'SUCCESS' || values.result_code !== 'SUCCESS') throw new Error(values.err_code_des || values.return_msg || `微信接口错误: ${response.status}`);
+  if (!values.sign || wechatV2Sign(values) !== values.sign) throw new Error('微信响应签名校验失败');
+  return values;
+}
+
 async function createWechatNativeOrder(outTradeNo, amountCents, description) {
-  if (!WECHAT_PAY_ENABLED || !WECHAT_APPID || !WECHAT_MCHID || !WECHAT_API_V2_KEY || !WECHAT_NOTIFY_URL) return null;
+  if (!WECHAT_PAY_ENABLED || !WECHAT_APPID || !WECHAT_MCHID || !WECHAT_API_V2_KEY || !WECHAT_NOTIFY_URL) throw new Error('微信支付尚未配置完整');
   const params = {
     appid: WECHAT_APPID,
     mch_id: WECHAT_MCHID,
@@ -193,24 +215,39 @@ async function createWechatNativeOrder(outTradeNo, amountCents, description) {
     spbill_create_ip: '8.163.113.5',
     notify_url: WECHAT_NOTIFY_URL,
     trade_type: 'NATIVE',
-    time_expire: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)
+    time_expire: wechatTime(new Date(Date.now() + 2 * 60 * 60 * 1000))
   };
-  params.sign = wechatV2Sign(params);
-  const response = await fetch('https://api.mch.weixin.qq.com/pay/unifiedorder', { method: 'POST', headers: { 'Content-Type': 'application/xml; charset=utf-8' }, body: xmlFromObject(params) });
-  const xml = await response.text();
-  if (!response.ok || xmlValue(xml, 'return_code') !== 'SUCCESS' || xmlValue(xml, 'result_code') !== 'SUCCESS' || !xmlValue(xml, 'code_url')) throw new Error(xmlValue(xml, 'err_code_des') || xmlValue(xml, 'return_msg') || `微信下单失败: ${response.status}`);
-  const codeUrl = xmlValue(xml, 'code_url');
-  return { mode: 'wechat-native', outTradeNo, codeUrl, qrUrl: `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(codeUrl)}` };
+  const values = await wechatRequest('/pay/unifiedorder', params);
+  if (!values.code_url?.startsWith('weixin://')) throw new Error('微信未返回有效的 Native 二维码');
+  return { mode: 'wechat-native', outTradeNo, qrUrl: await QRCode.toDataURL(values.code_url, { width: 280, margin: 2, errorCorrectionLevel: 'M' }) };
 }
 
-function orderLines(store, reagentIds) {
-  const items = store.cart.filter(item => reagentIds.includes(item.reagentId)).map(item => ({ ...item, reagent: store.reagents.find(reagent => reagent.id === item.reagentId) })).filter(item => item.reagent);
+function orderLines(store, user, reagentIds) {
+  const items = (store.carts[user.id] || []).filter(item => reagentIds.includes(item.reagentId)).map(item => ({ ...item, reagent: store.reagents.find(reagent => reagent.id === item.reagentId) })).filter(item => item.reagent && item.reagent.status !== 'inactive');
   return { items, total: items.reduce((sum, item) => sum + item.reagent.price * item.quantity, 0) };
+}
+
+function availableStock(store, reagentId) {
+  const reagent = store.reagents.find(item => item.id === reagentId);
+  const reserved = (store.orders || []).filter(order => order.paymentStatus === 'pending' && Date.parse(order.expiresAt || 0) > Date.now()).flatMap(order => order.items || []).filter(item => item.reagentId === reagentId).reduce((sum, item) => sum + item.quantity, 0);
+  return (reagent?.stock || 0) - reserved;
 }
 
 function removeOrderItemsFromCart(store, order) {
   const ids = (order.items || []).map(item => item.reagentId);
-  store.cart = store.cart.filter(item => !ids.includes(item.reagentId));
+  store.carts[order.userId] = (store.carts[order.userId] || []).filter(item => !ids.includes(item.reagentId));
+}
+
+function markOrderPaid(store, order, transactionId) {
+  if (order.paymentStatus === 'paid') return;
+  order.paymentStatus = 'paid'; order.status = '待商家确认'; order.transactionId = transactionId;
+  order.paidAt = new Date().toISOString();
+  for (const item of order.items) {
+    const reagent = store.reagents.find(entry => entry.id === item.reagentId);
+    if (reagent) reagent.stock = Math.max(0, reagent.stock - item.quantity);
+  }
+  removeOrderItemsFromCart(store, order);
+  writeStore(store);
 }
 
 function json(res, status, payload) {
@@ -748,6 +785,17 @@ async function route(req, res) {
       writeStore(store);
       return json(res, 201, { project });
     }
+    if (req.method === 'POST' && url.pathname === '/api/research/tasks') {
+      const payload = await body(req);
+      const project = payload.projectId ? store.researchProjects.find(item => item.id === payload.projectId && item.createdBy === user.id) : null;
+      if (payload.projectId && !project) return json(res, 404, { error: '研究方案不存在或不属于当前用户' });
+      const topic = project?.topic || cleanText(payload.topic, 1200);
+      if (topic.length < 4) return json(res, 400, { error: '请填写至少 4 个字符的科研任务描述' });
+      const existing = project && store.researchTasks.find(item => item.projectId === project.id && item.userId === user.id);
+      if (existing) return json(res, 200, { task: existing });
+      const task = { id: `task-${crypto.randomUUID().slice(0, 10)}`, projectId: project?.id || '', userId: user.id, topic, status: '已发布', createdAt: new Date().toISOString() };
+      store.researchTasks.unshift(task); writeStore(store); return json(res, 201, { task });
+    }
     if (req.method === 'POST' && url.pathname === '/api/lab/providers') {
       const payload = await body(req);
       const name = cleanText(payload.name, 160);
@@ -849,8 +897,8 @@ async function route(req, res) {
       const wanted = new Set((await body(req)).skus || []); const imported = [];
       for (const item of (store.ruijingCatalog || []).filter(entry => wanted.has(entry.sku))) {
         const existing = store.reagents.find(reagent => reagent.sku === item.sku);
-        if (existing) { Object.assign(existing, { ...item, sourcePlatform: '锐竞平台' }); imported.push(existing); continue; }
-        const reagent = { id: `r-${crypto.randomUUID().slice(0, 8)}`, ...item, sourcePlatform: '锐竞平台', rating: 5, color: '#9ae6b4' };
+        if (existing) { if (existing.ownerUserId !== user.id) continue; Object.assign(existing, { ...item, sourcePlatform: '锐竞平台' }); imported.push(existing); continue; }
+        const reagent = { id: `r-${crypto.randomUUID().slice(0, 8)}`, ...item, sourcePlatform: '锐竞平台', rating: 5, color: '#9ae6b4', status: 'active', ownerUserId: user.id };
         store.reagents.unshift(reagent); imported.push(reagent);
       }
       writeStore(store); return json(res, 201, { imported });
@@ -858,13 +906,14 @@ async function route(req, res) {
     if (req.method === 'POST' && url.pathname === '/api/reagents') {
       const payload = await body(req);
       const reagent = { id: `r-${crypto.randomUUID().slice(0, 8)}`, name: payload.name, brand: payload.brand || '未填写品牌', category: payload.category || '其他', spec: payload.spec || '按包装', price: Number(payload.price || 0), stock: Number(payload.stock || 0), seller: payload.seller || '我的店铺', rating: 5, tags: ['新上架'], color: '#9ae6b4', status: 'active', ownerUserId: user.id };
-      if (!reagent.name || !reagent.price) return json(res, 400, { error: '请填写试剂名称和价格' });
+      if (!cleanText(reagent.name, 200) || !Number.isFinite(reagent.price) || reagent.price <= 0 || !Number.isInteger(reagent.stock) || reagent.stock < 0) return json(res, 400, { error: '请填写试剂名称、有效价格和库存' });
       store.reagents.unshift(reagent); writeStore(store); return json(res, 201, reagent);
     }
     if (req.method === 'PATCH' && /^\/api\/reagents\/[^/]+$/.test(url.pathname)) {
       const id = url.pathname.split('/').pop();
       const reagent = store.reagents.find(item => item.id === id);
       if (!reagent) return json(res, 404, { error: '商品不存在' });
+      if (reagent.ownerUserId !== user.id) return json(res, 403, { error: '只能管理自己的商品' });
       const payload = await body(req);
       for (const key of ['name', 'brand', 'category', 'spec', 'seller']) if (payload[key] !== undefined) reagent[key] = cleanText(payload[key], 200);
       if (payload.price !== undefined && Number.isFinite(Number(payload.price)) && Number(payload.price) >= 0) reagent.price = Number(payload.price);
@@ -874,66 +923,90 @@ async function route(req, res) {
     }
     if (req.method === 'DELETE' && /^\/api\/reagents\/[^/]+$/.test(url.pathname)) {
       const id = url.pathname.split('/').pop();
-      if (!store.reagents.some(item => item.id === id)) return json(res, 404, { error: '商品不存在' });
+      const reagent = store.reagents.find(item => item.id === id);
+      if (!reagent) return json(res, 404, { error: '商品不存在' });
+      if (reagent.ownerUserId !== user.id) return json(res, 403, { error: '只能删除自己的商品' });
+      if (store.orders.some(order => order.items?.some(item => item.reagentId === id))) return json(res, 409, { error: '商品已有订单，请改为下架' });
       store.reagents = store.reagents.filter(item => item.id !== id);
-      store.cart = store.cart.filter(item => item.reagentId !== id);
+      for (const userId of Object.keys(store.carts)) store.carts[userId] = store.carts[userId].filter(item => item.reagentId !== id);
       writeStore(store); return json(res, 200, { deleted: true });
     }
     if (req.method === 'POST' && url.pathname === '/api/cart') {
-      const payload = await body(req); const existing = store.cart.find(item => item.reagentId === payload.reagentId);
+      const payload = await body(req); const cart = store.carts[user.id] ||= []; const existing = cart.find(item => item.reagentId === payload.reagentId);
       const reagent = store.reagents.find(item => item.id === payload.reagentId);
       const quantity = Number(payload.quantity ?? 1);
       if (!reagent) return json(res, 404, { error: '商品不存在' });
-      if (!Number.isInteger(quantity) || quantity < 1 || quantity + (existing?.quantity || 0) > reagent.stock) return json(res, 400, { error: '请填写有效数量，且不超过当前库存' });
-      if (existing) existing.quantity += quantity; else store.cart.push({ reagentId: payload.reagentId, quantity });
-      writeStore(store); return json(res, 200, store.cart);
+      if (reagent.status === 'inactive' || !Number.isInteger(quantity) || quantity < 1 || quantity + (existing?.quantity || 0) > availableStock(store, reagent.id)) return json(res, 400, { error: '商品已下架或数量超过可售库存' });
+      const project = store.researchProjects.find(item => item.id === payload.projectId && item.createdBy === user.id);
+      if (existing) existing.quantity += quantity; else cart.push({ reagentId: payload.reagentId, quantity, projectId: project?.id || '' });
+      writeStore(store); return json(res, 200, cart);
     }
     if (req.method === 'PATCH' && /^\/api\/cart\/[^/]+$/.test(url.pathname)) {
       const reagentId = url.pathname.split('/').pop();
-      const line = store.cart.find(item => item.reagentId === reagentId);
+      const cart = store.carts[user.id] ||= []; const line = cart.find(item => item.reagentId === reagentId);
       const reagent = store.reagents.find(item => item.id === reagentId);
       if (!line || !reagent) return json(res, 404, { error: '商品不在购物清单中' });
       const quantity = Number((await body(req)).quantity);
-      if (!Number.isInteger(quantity) || quantity < 1 || quantity > reagent.stock) return json(res, 400, { error: '请填写有效数量，且不超过当前库存' });
+      if (reagent.status === 'inactive' || !Number.isInteger(quantity) || quantity < 1 || quantity > availableStock(store, reagent.id)) return json(res, 400, { error: '商品已下架或数量超过可售库存' });
       line.quantity = quantity;
-      writeStore(store); return json(res, 200, store.cart);
+      writeStore(store); return json(res, 200, cart);
     }
     if (req.method === 'DELETE' && url.pathname.startsWith('/api/cart/')) {
-      const reagentId = url.pathname.split('/').pop(); store.cart = store.cart.filter(item => item.reagentId !== reagentId); writeStore(store); return json(res, 200, store.cart);
+      const reagentId = url.pathname.split('/').pop(); store.carts[user.id] = (store.carts[user.id] || []).filter(item => item.reagentId !== reagentId); writeStore(store); return json(res, 200, store.carts[user.id]);
     }
     if (req.method === 'POST' && url.pathname === '/api/orders/prepare-payment') {
-      const payload = await body(req); const reagentIds = payload.reagentIds || []; const { items, total } = orderLines(store, reagentIds);
+      if (!WECHAT_PAY_ENABLED) return json(res, 503, { error: '微信 Native 支付暂未开通，请稍后再试' });
+      if (pendingCheckouts.has(user.id)) return json(res, 409, { error: '订单正在创建，请勿重复提交' });
+      const payload = await body(req); const reagentIds = Array.isArray(payload.reagentIds) ? payload.reagentIds : []; const { items, total } = orderLines(store, user, reagentIds);
       if (!items.length) return json(res, 400, { error: '购物清单为空' });
-      const id = `PP-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${String(store.orders.length + 19).padStart(3, '0')}`;
+      if (items.some(item => item.quantity > availableStock(store, item.reagentId))) return json(res, 409, { error: '部分商品库存不足，请刷新购物清单' });
+      const shipping = { recipient: cleanText(payload.recipient, 80), phone: cleanText(payload.phone, 40), address: cleanText(payload.address, 400) };
+      if (!shipping.recipient || !/^1\d{10}$/.test(shipping.phone) || shipping.address.length < 6) return json(res, 400, { error: '请填写收件人、11 位手机号和完整收货地址' });
+      const task = store.researchTasks.find(entry => entry.id === payload.taskId && entry.userId === user.id);
+      const id = `PP-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
       const outTradeNo = `PP${Date.now()}${crypto.randomBytes(3).toString('hex')}`.slice(0, 32);
-      let payment = { mode: 'manual', outTradeNo, qrUrl: store.settings.wechatQr || '' };
-      try { payment = (await createWechatNativeOrder(outTradeNo, Math.round(total * 100), `PaperPilot 试剂订单 ${id}`)) || payment; } catch (error) { console.error('Wechat native order failed:', error.message); return json(res, 502, { error: '微信 Native 下单失败，请稍后重试' }); }
-      const order = { id, status: payment.mode === 'wechat-native' ? '待支付' : '待商家确认', paymentStatus: 'pending', outTradeNo, payment: { mode: payment.mode, qrUrl: payment.qrUrl }, items: items.map(item => ({ reagentId: item.reagentId, quantity: item.quantity })), total, itemCount: items.reduce((sum, item) => sum + item.quantity, 0), createdAt: new Date().toLocaleString('zh-CN', { hour12: false }), seller: '多供应商订单' };
+      let payment;
+      pendingCheckouts.add(user.id);
+      try { payment = await createWechatNativeOrder(outTradeNo, Math.round(total * 100), `PaperPilot 试剂订单 ${id}`); } catch (error) { console.error('Wechat native order failed:', error.message); return json(res, 502, { error: '微信 Native 下单失败，请稍后重试' }); } finally { pendingCheckouts.delete(user.id); }
+      const fulfillments = [...new Set(items.map(item => item.reagent.ownerUserId).filter(Boolean))].map(merchantId => ({ merchantId, status: '待确认', items: items.filter(item => item.reagent.ownerUserId === merchantId).map(item => ({ reagentId: item.reagentId, name: item.reagent.name, spec: item.reagent.spec, quantity: item.quantity })) }));
+      const order = { id, userId: user.id, taskId: task?.id || '', shipping, status: '待支付', paymentStatus: 'pending', expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), outTradeNo, payment: { mode: payment.mode, qrUrl: payment.qrUrl }, items: items.map(item => ({ reagentId: item.reagentId, name: item.reagent.name, unitPrice: item.reagent.price, quantity: item.quantity })), fulfillments, total, itemCount: items.reduce((sum, item) => sum + item.quantity, 0), createdAt: new Date().toISOString(), seller: fulfillments.length === 1 ? items.find(item => item.reagent.ownerUserId === fulfillments[0].merchantId).reagent.seller : '多供应商订单' };
       store.orders.unshift(order); writeStore(store); return json(res, 201, { order, payment });
     }
-    if (req.method === 'POST' && url.pathname === '/api/orders/confirm-payment') {
-      const payload = await body(req); const order = store.orders.find(item => item.id === payload.orderId);
+    if (req.method === 'GET' && /^\/api\/orders\/[^/]+\/payment$/.test(url.pathname)) {
+      const order = store.orders.find(item => item.id === url.pathname.split('/')[3] && item.userId === user.id);
       if (!order) return json(res, 404, { error: '订单不存在' });
-      if (order.paymentStatus !== 'paid') { order.status = '支付确认中'; order.paymentStatus = 'manual-confirmation'; removeOrderItemsFromCart(store, order); writeStore(store); }
-      return json(res, 200, order);
+      if (['pending', 'expired'].includes(order.paymentStatus) && order.payment?.mode === 'wechat-native' && WECHAT_PAY_ENABLED) {
+        try {
+          const result = await wechatRequest('/pay/orderquery', { appid: WECHAT_APPID, mch_id: WECHAT_MCHID, out_trade_no: order.outTradeNo, nonce_str: crypto.randomBytes(16).toString('hex') });
+          if (result.trade_state === 'SUCCESS' && result.appid === WECHAT_APPID && result.mch_id === WECHAT_MCHID && Number(result.total_fee) === Math.round(order.total * 100)) markOrderPaid(store, order, result.transaction_id);
+        } catch (error) { console.error('Wechat payment query failed:', error.message); return json(res, 502, { error: '暂时无法向微信核对付款，请稍后重试' }); }
+      }
+      return json(res, 200, { id: order.id, status: order.status, paymentStatus: order.paymentStatus, payment: order.payment });
     }
     if (req.method === 'POST' && url.pathname === '/api/wechat/notify') {
-      const raw = await new Promise((resolve, reject) => { let value = ''; req.on('data', chunk => { value += chunk; }); req.on('end', () => resolve(value)); req.on('error', reject); });
-      const outTradeNo = xmlValue(raw, 'out_trade_no'); const sign = xmlValue(raw, 'sign'); const values = {};
-      for (const key of ['appid', 'bank_type', 'cash_fee', 'fee_type', 'is_subscribe', 'mch_id', 'nonce_str', 'openid', 'out_trade_no', 'result_code', 'return_code', 'time_end', 'total_fee', 'trade_type', 'transaction_id']) { const value = xmlValue(raw, key); if (value) values[key] = value; }
-      if (!outTradeNo || !sign || wechatV2Sign(values) !== sign) return res.end(xmlFromObject({ return_code: 'FAIL', return_msg: '签名错误' }));
-      const order = store.orders.find(item => item.outTradeNo === outTradeNo);
-      if (order && values.return_code === 'SUCCESS' && values.result_code === 'SUCCESS') { order.paymentStatus = 'paid'; order.status = '待商家确认'; order.transactionId = values.transaction_id; removeOrderItemsFromCart(store, order); writeStore(store); }
+      const raw = await new Promise((resolve, reject) => { let value = ''; req.on('data', chunk => { value += chunk; if (value.length > 65536) req.destroy(); }); req.on('end', () => resolve(value)); req.on('error', reject); });
+      res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+      const values = xmlFields(raw); const order = store.orders.find(item => item.outTradeNo === values.out_trade_no);
+      if (!WECHAT_PAY_ENABLED || !values.sign || wechatV2Sign(values) !== values.sign || !order || order.payment?.mode !== 'wechat-native' || values.appid !== WECHAT_APPID || values.mch_id !== WECHAT_MCHID || Number(values.total_fee) !== Math.round(order.total * 100) || values.return_code !== 'SUCCESS' || values.result_code !== 'SUCCESS' || !values.transaction_id) return res.end(xmlFromObject({ return_code: 'FAIL', return_msg: '订单或签名无效' }));
+      markOrderPaid(store, order, values.transaction_id);
       return res.end(xmlFromObject({ return_code: 'SUCCESS', return_msg: 'OK' }));
     }
-    if (req.method === 'POST' && url.pathname === '/api/orders') {
-      const payload = await body(req); const { items, total } = orderLines(store, payload.reagentIds || []);
-      const order = { id: `PP-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${String(store.orders.length + 19).padStart(3, '0')}`, status: '待商家确认', paymentStatus: 'manual-confirmation', total, itemCount: items.reduce((sum, item) => sum + item.quantity, 0), createdAt: new Date().toLocaleString('zh-CN', { hour12: false }), seller: '多供应商订单', items: items.map(item => ({ reagentId: item.reagentId, quantity: item.quantity })) };
-      store.orders.unshift(order); removeOrderItemsFromCart(store, order); writeStore(store); return json(res, 201, order);
+    if (req.method === 'POST' && url.pathname === '/api/orders/confirm-payment') return json(res, 410, { error: '已停用手动确认，请等待微信支付通知或查询支付状态' });
+    if (req.method === 'POST' && url.pathname === '/api/orders') return json(res, 410, { error: '请从购物清单使用安全支付流程下单' });
+    if (req.method === 'PATCH' && /^\/api\/merchant\/orders\/[^/]+\/ship$/.test(url.pathname)) {
+      const order = store.orders.find(item => item.id === url.pathname.split('/')[4]);
+      const fulfillment = order?.fulfillments?.find(item => item.merchantId === user.id);
+      if (!fulfillment) return json(res, 404, { error: '没有可管理的商家订单' });
+      if (order.paymentStatus !== 'paid') return json(res, 409, { error: '订单尚未由微信确认支付，不能发货' });
+      if (fulfillment.status === '已发货') return json(res, 409, { error: '该订单已经发货' });
+      const payload = await body(req);
+      const carrier = cleanText(payload.carrier, 80), trackingNo = cleanText(payload.trackingNo, 80);
+      if (!carrier || !/^[A-Za-z0-9-]{5,80}$/.test(trackingNo)) return json(res, 400, { error: '请填写物流公司和有效运单号' });
+      Object.assign(fulfillment, { status: '已发货', carrier, trackingNo, shippedAt: new Date().toISOString() });
+      order.status = order.fulfillments.every(item => item.status === '已发货') ? '已发货' : '部分发货';
+      writeStore(store); return json(res, 200, { orderId: order.id, fulfillment });
     }
-    if (req.method === 'POST' && url.pathname === '/api/settings/wechat-qr') {
-      const payload = await body(req); store.settings.wechatQr = payload.dataUrl || ''; writeStore(store); return json(res, 200, { saved: true });
-    }
+    if (req.method === 'POST' && url.pathname === '/api/settings/wechat-qr') return json(res, 410, { error: '已停用静态收款码；请使用逐单生成的 Native 二维码' });
     return json(res, 404, { error: 'Not found' });
   } catch (error) { console.error(error); return json(res, 500, { error: error.message }); }
 }
