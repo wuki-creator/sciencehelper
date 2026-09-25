@@ -162,6 +162,7 @@ function publicState(store, user) {
     ruijingCatalog: store.ruijingCatalog,
     researchProjects: store.researchProjects.filter(project => project.createdBy === user.id),
     researchTasks: store.researchTasks.filter(task => task.userId === user.id),
+    publishedTasks: store.researchTasks.filter(task => task.status === '已发布').slice(0, 30).map(({ id, topic, createdAt }) => ({ id, topic, createdAt })),
     labProviders: store.labProviders,
     labRequests: store.labRequests.filter(request => request.userId === user?.id || store.labProviders.find(provider => provider.id === request.labId)?.ownerUserId === user?.id),
     settings: { paymentEnabled: WECHAT_PAY_ENABLED },
@@ -936,6 +937,7 @@ async function route(req, res) {
       const reagent = store.reagents.find(item => item.id === payload.reagentId);
       const quantity = Number(payload.quantity ?? 1);
       if (!reagent) return json(res, 404, { error: '商品不存在' });
+      if (!reagent.ownerUserId) return json(res, 409, { error: '商品尚未绑定履约商家，暂不能在线购买' });
       if (reagent.status === 'inactive' || !Number.isInteger(quantity) || quantity < 1 || quantity + (existing?.quantity || 0) > availableStock(store, reagent.id)) return json(res, 400, { error: '商品已下架或数量超过可售库存' });
       const project = store.researchProjects.find(item => item.id === payload.projectId && item.createdBy === user.id);
       if (existing) existing.quantity += quantity; else cart.push({ reagentId: payload.reagentId, quantity, projectId: project?.id || '' });
@@ -959,6 +961,7 @@ async function route(req, res) {
       if (pendingCheckouts.has(user.id)) return json(res, 409, { error: '订单正在创建，请勿重复提交' });
       const payload = await body(req); const reagentIds = Array.isArray(payload.reagentIds) ? payload.reagentIds : []; const { items, total } = orderLines(store, user, reagentIds);
       if (!items.length) return json(res, 400, { error: '购物清单为空' });
+      if (items.some(item => !item.reagent.ownerUserId)) return json(res, 409, { error: '部分商品尚未绑定履约商家，不能生成支付订单' });
       if (items.some(item => item.quantity > availableStock(store, item.reagentId))) return json(res, 409, { error: '部分商品库存不足，请刷新购物清单' });
       const shipping = { recipient: cleanText(payload.recipient, 80), phone: cleanText(payload.phone, 40), address: cleanText(payload.address, 400) };
       if (!shipping.recipient || !/^1\d{10}$/.test(shipping.phone) || shipping.address.length < 6) return json(res, 400, { error: '请填写收件人、11 位手机号和完整收货地址' });

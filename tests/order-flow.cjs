@@ -76,6 +76,8 @@ test('research task → cart → Native payment → merchant shipment, isolated 
     const directTask = await stranger('/api/research/tasks', 'POST', { topic: '直接发布的科研采购任务' });
     assert.equal(directTask.status, 201);
     assert.equal(directTask.data.task.projectId, '');
+    assert.ok((await buyer('/api/state')).data.publishedTasks.some(item => item.id === directTask.data.task.id));
+    assert.equal((await buyer('/api/cart', 'POST', { reagentId: 'r-001', quantity: 1 })).status, 409);
     const product = await merchant('/api/reagents', 'POST', { name: 'RNA 检测试剂盒', price: 199, stock: 3, seller: '测试商家' });
     assert.equal(product.status, 201);
     assert.equal(product.data.ownerUserId, merchantUser.id);
