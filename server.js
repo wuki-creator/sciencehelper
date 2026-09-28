@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
+const { RAG_SOURCE, buildRagIndex, readRagJsonl, rankReagents, retrieveRagEvidence } = require('./src/reagent-matching.cjs');
 
 const ROOT = __dirname;
 const DATA_DIR = process.env.PAPERPILOT_DATA_DIR || path.join(ROOT, 'data');
@@ -29,6 +30,17 @@ const DEEPSEEK_BASE_URL = (process.env.DEEPSEEK_BASE_URL || 'https://api.deepsee
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
 const EUROPE_PMC_URL = (process.env.EUROPE_PMC_URL || 'https://www.ebi.ac.uk/europepmc/webservices/rest').replace(/\/$/, '');
 const pendingCheckouts = new Set();
+const RAG_PATH = path.join(ROOT, RAG_SOURCE);
+let ragIndex;
+
+function getRagIndex() {
+  if (!ragIndex) {
+    const started = Date.now();
+    ragIndex = buildRagIndex(readRagJsonl(RAG_PATH));
+    console.info(`[reagent-rag] indexed ${ragIndex.length} rows in ${Date.now() - started}ms`);
+  }
+  return ragIndex;
+}
 
 const seed = {
   reagents: [
@@ -603,12 +615,72 @@ function evidenceCorpus(papers) {
   return papers.map(paper => `${paper.title}\n${paper.abstract}\n${paper.methodsText}`);
 }
 
-function catalogMatch(resource, store) {
-  const ranked = (store.reagents || []).filter(item => item.status !== 'inactive').map(item => ({ item, score: keywordScore(`${resource.name} ${resource.role || ''}`, item) })).sort((a, b) => b.score - a.score);
+function buildRagContext(topic, papers) {
+  return [topic, ...(papers || []).slice(0, 8).flatMap(paper => [
+    paper.title,
+    String(paper.abstract || '').slice(0, 1200),
+    String(paper.methodsText || '').slice(0, 1800)
+  ])].filter(Boolean).join('\n');
+}
+
+function ragMatchPayload(query, catalog, limit = 5) {
+  const matches = rankReagents(query, catalog, getRagIndex(), limit);
+  return {
+    source: RAG_SOURCE,
+    evidence: retrieveRagEvidence(query, getRagIndex(), 5),
+    routes: matches.map(match => ({
+      reagent: match.item,
+      score: match.score,
+      tier: match.tier,
+      reason: match.reason,
+      evidence: match.evidence,
+      platformValidation: match.platformValidation
+    }))
+  };
+}
+
+function catalogMatch(resource, store, context = '', ragEvidence = null) {
+  const query = [resource.name, resource.role].filter(Boolean).join('\n');
+  const ranked = rankReagents(query, (store.reagents || []).filter(item => item.status !== 'inactive'), getRagIndex(), 5, ragEvidence || retrieveRagEvidence(context || query, getRagIndex(), 8));
   const best = ranked[0];
+  // A zero-score row is not a recommendation. This prevents a generic
+  // in-stock SKU from being presented as a match when the evidence is silent.
   if (!best || best.score <= 0) return { catalogId: null, catalogMatch: null };
   const item = best.item;
-  return { catalogId: item.id, catalogMatch: { id: item.id, name: item.name, brand: item.brand, spec: item.spec, price: item.price, stock: item.stock, seller: item.seller } };
+  const toCatalogRow = match => ({
+    id: match.item.id,
+    name: match.item.name,
+    brand: match.item.brand,
+    spec: match.item.spec,
+    price: match.item.price,
+    stock: match.item.stock,
+    seller: match.item.seller,
+    matchScore: match.matchScore,
+    matchTier: match.tier,
+    reason: match.reason,
+    evidence: match.evidence,
+    platformValidation: match.platformValidation,
+    ragSource: RAG_SOURCE
+  });
+  return {
+    catalogId: item.id,
+    catalogMatch: toCatalogRow(best),
+    alternatives: ranked.slice(1, 3).map(toCatalogRow),
+    ragSource: RAG_SOURCE
+  };
+}
+
+function platformValidationFields(item) {
+  const nested = item.validation && typeof item.validation === 'object' ? item.validation : {};
+  const numeric = (value, fallback = null) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+  return {
+    validationStatus: String(item.validationStatus || nested.status || 'candidate').toLowerCase(),
+    qualityScore: numeric(item.qualityScore ?? nested.qualityScore ?? item.validationScore ?? nested.score),
+    successRate: numeric(item.successRate ?? nested.successRate),
+    evidenceCount: numeric(item.evidenceCount ?? nested.evidenceCount, 0),
+    reviewCount: numeric(item.reviewCount ?? nested.reviewCount, 0),
+    validationSource: cleanText(item.validationSource || nested.source || '', 240)
+  };
 }
 
 function sourcePaperIdsFor(text, papers) {
@@ -620,8 +692,10 @@ function sourcePaperIdsFor(text, papers) {
   }).map(paper => paper.id);
 }
 
-function normalizeAgentAnalysis(raw, papers, store, fallbackReason = '') {
+function normalizeAgentAnalysis(raw, papers, store, fallbackReason = '', topic = '') {
   const corpus = evidenceCorpus(papers).join('\n');
+  const ragContext = buildRagContext(topic, papers);
+  const ragEvidence = retrieveRagEvidence(ragContext, getRagIndex(), 8);
   const nodes = Array.isArray(raw.methodTree) ? raw.methodTree : Array.isArray(raw.methods) ? raw.methods : [];
   const normalized = nodes.slice(0, 12).map((node, index) => {
     const name = cleanText(node.name || node.method, 180) || `方法步骤 ${index + 1}`;
@@ -632,7 +706,7 @@ function normalizeAgentAnalysis(raw, papers, store, fallbackReason = '') {
       if (!resourceName) return null;
       const ids = [...new Set((Array.isArray(value.paperIds) ? value.paperIds : sourcePaperIdsFor(resourceName, papers)).filter(id => papers.some(paper => paper.id === id)))];
       if (!ids.length && !corpus.toLowerCase().includes(resourceName.toLowerCase())) return null;
-      return { name: resourceName, role: cleanText(value.role, 240), paperIds: ids, selected: false, ...(type === 'reagent' ? catalogMatch({ name: resourceName, role: value.role }, store) : {}) };
+      return { name: resourceName, role: cleanText(value.role, 240), paperIds: ids, selected: false, ...(type === 'reagent' ? catalogMatch({ name: resourceName, role: value.role }, store, ragContext, ragEvidence) : {}) };
     };
     return {
       id: `method-${crypto.randomUUID().slice(0, 8)}`,
@@ -660,7 +734,7 @@ function normalizeAgentAnalysis(raw, papers, store, fallbackReason = '') {
   };
 }
 
-function fallbackResearchAnalysis(papers, store, reason) {
+function fallbackResearchAnalysis(papers, store, reason, topic = '') {
   const sources = evidenceCorpus(papers);
   const methodTree = methodRules.map(rule => {
     const paperIds = papers.filter((_, index) => rule.pattern.test(sources[index])).map(paper => paper.id);
@@ -669,7 +743,7 @@ function fallbackResearchAnalysis(papers, store, reason) {
     const resources = resourceRules.filter(resource => resource.pattern.test(relevantText)).map(resource => ({ name: resource.name, role: resource.role, paperIds }));
     return { name: rule.name, category: rule.category, description: `该步骤在 ${paperIds.length} 篇入选文献中出现，关键参数需回到原文复核。`, paperIds, reagents: resources.filter(item => resourceRules.find(ruleItem => ruleItem.name === item.name)?.type === 'reagent'), materials: resources.filter(item => resourceRules.find(ruleItem => ruleItem.name === item.name)?.type === 'material') };
   }).filter(Boolean);
-  return normalizeAgentAnalysis({ summary: '已使用可追溯规则从开放全文与摘要中整理方法分类；请在实验前复核原文中的浓度、时间、温度和样本条件。', methodTree }, papers, store, `DeepSeek Methods 解析暂不可用，当前为规则提取结果：${reason}`);
+  return normalizeAgentAnalysis({ summary: '已使用可追溯规则从开放全文与摘要中整理方法分类；请在实验前复核原文中的浓度、时间、温度和样本条件。', methodTree }, papers, store, `DeepSeek Methods 解析暂不可用，当前为规则提取结果：${reason}`, topic);
 }
 
 async function analyzeResearchPapers(topic, papers, store) {
@@ -680,10 +754,10 @@ async function analyzeResearchPapers(topic, papers, store) {
       JSON.stringify({ topic, papers: compactPapers }).slice(0, 115000),
       120000
     );
-    return { ...normalizeAgentAnalysis(raw, papers, store), provider: 'deepseek' };
+    return { ...normalizeAgentAnalysis(raw, papers, store, '', topic), provider: 'deepseek' };
   } catch (error) {
     console.warn(`[methods-agent] fallback: ${error.message}`);
-    return { ...fallbackResearchAnalysis(papers, store, error.message), provider: 'rules' };
+    return { ...fallbackResearchAnalysis(papers, store, error.message, topic), provider: 'rules' };
   }
 }
 
@@ -816,13 +890,21 @@ async function route(req, res) {
     if (req.method === 'POST' && url.pathname === '/api/research/k2') {
       const payload = await body(req);
       if (!String(payload.title || payload.methods || '').trim()) return json(res, 400, { error: '请提供论文标题或 Methods' });
-      try { return json(res, 200, await callResearchNetwork('/v1/k2', { ...payload, catalog: payload.catalog || store.reagents })); }
+      try {
+        const catalog = payload.catalog || store.reagents;
+        const result = await callResearchNetwork('/v1/k2', { ...payload, catalog });
+        return json(res, 200, { ...result, rag: ragMatchPayload(`${payload.title || ''}\n${payload.methods || ''}`, catalog, payload.top_k || 5) });
+      }
       catch (error) { return json(res, 503, { error: 'K2 试剂路由暂不可用', detail: error.message }); }
     }
     if (req.method === 'POST' && url.pathname === '/api/research/pipeline') {
       const payload = await body(req);
       if (!String(payload.title || '').trim()) return json(res, 400, { error: '请提供论文标题' });
-      try { return json(res, 200, await callResearchNetwork('/v1/pipeline', { ...payload, catalog: payload.catalog || store.reagents })); }
+      try {
+        const catalog = payload.catalog || store.reagents;
+        const result = await callResearchNetwork('/v1/pipeline', { ...payload, catalog });
+        return json(res, 200, { ...result, rag: ragMatchPayload(`${payload.title || ''}\n${payload.methods || ''}`, catalog, payload.top_k || 5) });
+      }
       catch (error) { return json(res, 503, { error: '研究网络暂不可用', detail: error.message }); }
     }
     if (req.method === 'POST' && url.pathname === '/api/research/workflows') {
@@ -965,7 +1047,7 @@ async function route(req, res) {
         const data = await response.json(); catalog = data.items || data.skus || data.data || data; source = '锐竞 API';
         if (!Array.isArray(catalog)) throw new Error('锐竞 API 返回格式不是数组');
       }
-      store.ruijingCatalog = catalog.map(item => ({ sku: item.sku || item.SKU || item.skuCode, name: item.name || item.title, brand: item.brand || '', category: item.category || item.type || '其他', spec: item.spec || item.package || '', price: Number(item.price || 0), stock: Number(item.stock || 0), seller: item.seller || item.vendor || '锐竞平台商家', tags: item.tags || [], source }));
+      store.ruijingCatalog = catalog.map(item => ({ sku: item.sku || item.SKU || item.skuCode, name: item.name || item.title, brand: item.brand || '', category: item.category || item.type || '其他', spec: item.spec || item.package || '', price: Number(item.price || 0), stock: Number(item.stock || 0), seller: item.seller || item.vendor || '锐竞平台商家', tags: item.tags || [], ...platformValidationFields(item), source }));
       writeStore(store); return json(res, 200, { connected: Boolean(RUIJING_SKU_URL), source, catalog: store.ruijingCatalog });
     }
     if (req.method === 'POST' && url.pathname === '/api/merchant/ruijing/import') {
@@ -973,14 +1055,14 @@ async function route(req, res) {
       for (const item of (store.ruijingCatalog || []).filter(entry => wanted.has(entry.sku))) {
         const existing = store.reagents.find(reagent => reagent.sku === item.sku);
         if (existing) { if (existing.ownerUserId !== user.id) continue; Object.assign(existing, { ...item, sourcePlatform: '锐竞平台' }); imported.push(existing); continue; }
-        const reagent = { id: `r-${crypto.randomUUID().slice(0, 8)}`, ...item, sourcePlatform: '锐竞平台', rating: 5, color: '#9ae6b4', status: 'active', ownerUserId: user.id };
+        const reagent = { id: `r-${crypto.randomUUID().slice(0, 8)}`, ...item, ...platformValidationFields(item), sourcePlatform: '锐竞平台', rating: 5, color: '#9ae6b4', status: 'active', ownerUserId: user.id };
         store.reagents.unshift(reagent); imported.push(reagent);
       }
       writeStore(store); return json(res, 201, { imported });
     }
     if (req.method === 'POST' && url.pathname === '/api/reagents') {
       const payload = await body(req);
-      const reagent = { id: `r-${crypto.randomUUID().slice(0, 8)}`, name: payload.name, brand: payload.brand || '未填写品牌', category: payload.category || '其他', spec: payload.spec || '按包装', price: Number(payload.price || 0), stock: Number(payload.stock || 0), seller: payload.seller || '我的店铺', rating: 5, tags: ['新上架'], color: '#9ae6b4', status: 'active', ownerUserId: user.id };
+      const reagent = { id: `r-${crypto.randomUUID().slice(0, 8)}`, name: payload.name, brand: payload.brand || '未填写品牌', category: payload.category || '其他', spec: payload.spec || '按包装', price: Number(payload.price || 0), stock: Number(payload.stock || 0), seller: payload.seller || '我的店铺', rating: 5, tags: ['新上架'], color: '#9ae6b4', status: 'active', ownerUserId: user.id, validationStatus: 'candidate', qualityScore: null, successRate: null, evidenceCount: 0, reviewCount: 0, validationSource: '' };
       if (!cleanText(reagent.name, 200) || !Number.isFinite(reagent.price) || !Number.isInteger(reagent.price * 100) || reagent.price <= 0 || !Number.isInteger(reagent.stock) || reagent.stock < 0) return json(res, 400, { error: '请填写试剂名称、精确到分的价格和有效库存' });
       store.reagents.unshift(reagent); writeStore(store); return json(res, 201, reagent);
     }

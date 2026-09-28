@@ -144,6 +144,10 @@ textarea::placeholder,input::placeholder { color:#849084; opacity:1; }
 .reagent-grid { grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; }
 .reagent-card { padding:22px; }
 .reagent-name { font-size:15px; line-height:1.55; min-height:48px; overflow-wrap:anywhere; }
+.reagent-validation { display:inline-flex; align-items:center; gap:5px; margin:7px 0 2px; padding:4px 7px; border-radius:5px; font-size:9px; line-height:1; }
+.reagent-validation.validated_best { color:#245b42; background:#e0f3df; }
+.reagent-validation.evidence_supported { color:#375f72; background:#e4f0f5; }
+.reagent-validation.candidate { color:#7c715d; background:#f3eee2; }
 .reagent-card p { color:#6d7d6e; font-size:11px; line-height:1.7; }
 .reagent-swatch { width:44px; height:44px; border-radius:12px; }
 .reagent-brand { font-size:10px; margin-top:20px; color:#708668; letter-spacing:.5px; }
@@ -534,6 +538,11 @@ textarea::placeholder,input::placeholder { color:#849084; opacity:1; }
 .resource-row strong { font-size:10px; line-height:1.45; }
 .resource-row small { margin-top:4px; color:#7b887a; font-size:8px; line-height:1.5; }
 .resource-row em { max-width:115px; color:#376f58; font-size:8px; font-style:normal; text-align:right; line-height:1.5; }
+.resource-row em.match-evidence { display:grid; gap:3px; }
+.resource-row em.match-evidence b { font-size:8px; font-weight:600; }
+.resource-row em.validated_best { color:#245b42; }
+.resource-row em.evidence_supported { color:#375f72; }
+.resource-row em.candidate { color:#7c715d; }
 .resource-row em.unmatched { color:#8c826b; }
 .resource-empty { color:#879287; font-size:9px; }
 .selection-dock { position:sticky; top:0; padding:22px; color:#edf4e9; background:#1e3c34; border-radius:12px; }

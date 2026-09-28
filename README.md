@@ -30,6 +30,7 @@ npm start
 - `scripts/fetch-bio-literature-topics.cjs`：从 Europe PMC 分页抓取文献标题并生成课题描述；默认生成 20,000 条，可通过 `--count`、`--pageSize` 和 `--output` 调整
 - `docs/sciencehelper-prd-v1.md`：科研任务、Native 支付、试剂采购与商家履约的页面级 PRD 和验收边界
 - `docs/sciencehelper-growth-operations-2026.md`：受控试点、供给和渠道增长的运营方案；5 万用户是待验证目标
+- `docs/reagent-rag-matching.md`：课题到试剂的 RAG 召回、验证门槛、排序公式和可追溯输出
 
 ## 20,000 条文献课题目录
 
@@ -55,6 +56,8 @@ node scripts/fetch-bio-literature-topics.cjs `
 商家通过登录页的“商家入驻”注册，或在普通账户中提交主体资料后进入商家工作台；商品、供应商目录和发货接口由服务端商家角色校验。商城运营后台已移除，模型管理后台仍需后续接入独立管理员角色、审计日志和权限策略。文献目录中的 URL 是检索或开放全文筛选入口，平台在展示可下载 PDF 前应再次校验开放获取和授权状态。
 
 科研任务默认仅创建者可见，主动选择公开才展示课题描述。商城历史样例商品未绑定履约商家时不可在线购买。Native 支付必须由微信回调或查询确认，不能通过用户手动点击完成付款。
+
+试剂推荐会读取 `docs/bio-literature-topics-20000.jsonl` 的文献主题作为 RAG 召回来源，并将课题词项、实验环节、库存和平台验证信息一起排序。只有平台明确提供验证状态、质量分、成功率和验证证据数量且达到门槛的商品才会标记为“已验证优选”；文献相关性本身不代表实验验证，详见 [`docs/reagent-rag-matching.md`](docs/reagent-rag-matching.md)。
 
 ## 验证
 
