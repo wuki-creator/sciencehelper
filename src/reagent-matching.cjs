@@ -165,4 +165,4 @@ function rankReagents(query, items, ragIndex, limit = 5, evidenceOverride = null
   ).slice(0, limit);
 }
 
-module.exports = { RAG_SOURCE, buildRagIndex, readRagJsonl, retrieveRagEvidence, rankReagents, validationInfo };
+module.exports = { RAG_SOURCE, buildRagIndex, readRagJsonl, retrieveRagEvidence, rankReagents, validationInfo, hintLabels };

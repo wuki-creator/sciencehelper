@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
-const { RAG_SOURCE, buildRagIndex, readRagJsonl, rankReagents, retrieveRagEvidence } = require('./src/reagent-matching.cjs');
+const { RAG_SOURCE, buildRagIndex, readRagJsonl, rankReagents, retrieveRagEvidence, hintLabels } = require('./src/reagent-matching.cjs');
 
 const ROOT = __dirname;
 const DATA_DIR = process.env.PAPERPILOT_DATA_DIR || path.join(ROOT, 'data');
@@ -641,10 +641,15 @@ function ragMatchPayload(query, catalog, limit = 5) {
 
 function catalogMatch(resource, store, context = '', ragEvidence = null) {
   const query = [resource.name, resource.role].filter(Boolean).join('\n');
-  const ranked = rankReagents(query, (store.reagents || []).filter(item => item.status !== 'inactive'), getRagIndex(), 5, ragEvidence || retrieveRagEvidence(context || query, getRagIndex(), 8));
-  const best = ranked[0];
-  // A zero-score row is not a recommendation. This prevents a generic
-  // in-stock SKU from being presented as a match when the evidence is silent.
+  const allEvidence = ragEvidence || retrieveRagEvidence(context || query, getRagIndex(), 8);
+  const resourceLabels = hintLabels(query);
+  const focusedEvidence = resourceLabels.length
+    ? allEvidence.filter(row => hintLabels(`${row.title} ${row.topic} ${row.category} ${row.intent}`).some(label => resourceLabels.includes(label)))
+    : allEvidence;
+  const ranked = rankReagents(query, (store.reagents || []).filter(item => item.status !== 'inactive'), getRagIndex(), 5, focusedEvidence);
+  const best = ranked.find(match => match.lexicalSupport > 0 || match.ragSupport > 0);
+  // A row with only the stock/rating baseline is not a recommendation. This
+  // prevents a generic in-stock SKU from filling an unrelated Methods slot.
   if (!best || best.score <= 0) return { catalogId: null, catalogMatch: null };
   const item = best.item;
   const toCatalogRow = match => ({
