@@ -31,6 +31,7 @@ npm start
 - `docs/sciencehelper-prd-v1.md`：科研任务、Native 支付、试剂采购与商家履约的页面级 PRD 和验收边界
 - `docs/sciencehelper-growth-operations-2026.md`：受控试点、供给和渠道增长的运营方案；5 万用户是待验证目标
 - `docs/reagent-rag-matching.md`：课题到试剂的 RAG 召回、验证门槛、排序公式和可追溯输出
+- `public/poster.html`：面向客户推广的竖版海报，可直接打开或打印为 PDF
 
 ## 20,000 条文献课题目录
 
@@ -68,3 +69,5 @@ node --test tests/order-flow.cjs
 ```
 
 线上站点：<https://www.sciencehelper.cn>
+
+推广海报：<https://www.sciencehelper.cn/poster.html>

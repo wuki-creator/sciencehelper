@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="ScienceHelper 科研工作台客户推广海报">
+  <title>ScienceHelper · 让课题走到实验台</title>
+  <style>
+    :root { --ink:#183830; --ink-2:#50635b; --paper:#f6f8f5; --panel:#fff; --line:#dfe8df; --mint:#d9ef8b; --blue:#cfe5e5; --warm:#f4e7c5; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; min-height:100%; background:#dce6dd; color:var(--ink); font-family: "DM Sans", "Microsoft YaHei", "PingFang SC", sans-serif; }
+    body { display:grid; place-items:center; padding:28px; }
+    .poster { position:relative; width:min(100%,1080px); aspect-ratio:3 / 4; overflow:hidden; background:var(--paper); box-shadow:0 24px 70px #17352f2a; }
+    .poster::before { content:""; position:absolute; width:420px; height:420px; right:-160px; top:260px; border:1px solid #b7d0bd; border-radius:50%; box-shadow:0 0 0 28px #dfeadf, 0 0 0 56px #edf3eb; opacity:.8; }
+    .top { position:relative; min-height:37%; padding:62px 72px 54px; color:#fff; background:var(--ink); }
+    .top::after { content:""; position:absolute; left:0; right:0; bottom:-1px; height:52px; background:linear-gradient(175deg,transparent 49%,var(--paper) 50%); }
+    .brand { display:flex; align-items:center; gap:14px; letter-spacing:.05em; font-size:25px; font-weight:650; }
+    .mark { display:grid; place-items:center; width:38px; height:38px; border:1px solid #d9ef8b; color:var(--mint); font-size:17px; font-weight:700; }
+    .eyebrow { margin:54px 0 18px; color:var(--mint); font-size:13px; font-weight:650; letter-spacing:.16em; }
+    h1 { max-width:760px; margin:0; font-size:clamp(38px,5.2vw,66px); line-height:1.16; letter-spacing:-.04em; font-weight:650; }
+    .lead { max-width:760px; margin:22px 0 0; color:#c8d8cf; font-size:19px; line-height:1.7; }
+    .content { position:relative; padding:36px 72px 58px; }
+    .intro { display:flex; justify-content:space-between; align-items:flex-end; gap:24px; margin-bottom:30px; }
+    .intro h2 { max-width:600px; margin:0; font-size:25px; line-height:1.4; letter-spacing:-.025em; }
+    .intro p { max-width:280px; margin:0; color:var(--ink-2); font-size:13px; line-height:1.7; }
+    .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+    .step { position:relative; min-height:195px; padding:20px; border:1px solid var(--line); background:#fff; }
+    .step:nth-child(2) { background:var(--blue); border-color:#b9d5d2; }
+    .step:nth-child(3) { background:var(--warm); border-color:#ead8a9; }
+    .step:not(:last-child)::after { content:"→"; position:absolute; z-index:2; right:-20px; top:50%; color:#64806d; font-size:22px; transform:translateY(-50%); }
+    .step-no { color:#738778; font-size:12px; font-weight:700; letter-spacing:.12em; }
+    .step h3 { margin:30px 0 8px; font-size:18px; }
+    .step p { margin:0; color:#52645b; font-size:12px; line-height:1.7; }
+    .proof { display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:10px; margin-top:28px; padding:18px 20px; color:#fff; background:var(--ink); }
+    .proof strong { display:block; color:var(--mint); font-size:23px; letter-spacing:-.03em; }
+    .proof span { display:block; margin-top:4px; color:#c2d1c8; font-size:11px; line-height:1.5; }
+    .bottom { display:flex; justify-content:space-between; align-items:center; gap:28px; margin-top:38px; padding-top:25px; border-top:1px solid var(--line); }
+    .cta h2 { margin:0; font-size:26px; }
+    .cta p { margin:7px 0 14px; color:var(--ink-2); font-size:13px; }
+    .url { display:inline-flex; align-items:center; min-height:40px; padding:0 15px; color:var(--ink); border:1px solid var(--ink); font-size:13px; font-weight:650; letter-spacing:.04em; }
+    .qr { display:flex; align-items:center; gap:14px; }
+    .qr img { width:118px; height:118px; padding:7px; background:#fff; border:1px solid var(--line); }
+    .qr span { max-width:110px; color:var(--ink-2); font-size:11px; line-height:1.6; }
+    .note { position:absolute; right:72px; bottom:22px; margin:0; color:#859489; font-size:9px; }
+    @media (max-width:720px) { body { padding:0; } .poster { width:100%; min-height:100vh; aspect-ratio:auto; } .top { min-height:390px; padding:38px 28px 52px; } .eyebrow { margin-top:54px; } .content { padding:28px 28px 56px; } .intro { display:block; } .intro p { margin-top:12px; } .steps { grid-template-columns:1fr; } .step { min-height:130px; } .step:not(:last-child)::after { content:"↓"; right:auto; top:auto; bottom:-24px; left:50%; transform:translateX(-50%); } .step h3 { margin-top:16px; } .proof { grid-template-columns:1fr; } .bottom { align-items:flex-start; flex-direction:column; } .qr { align-self:flex-start; } .note { position:static; margin:24px 28px 0; } }
+    @media print { body { padding:0; background:#fff; } .poster { width:1080px; box-shadow:none; } }
+  </style>
+</head>
+<body>
+  <main class="poster" aria-label="ScienceHelper 客户推广海报">
+    <section class="top">
+      <div class="brand"><span class="mark">S</span><span>ScienceHelper</span></div>
+      <div class="eyebrow">EVIDENCE · METHODS · EXPERIMENT</div>
+      <h1>让每一个课题，<br>走到实验台。</h1>
+      <p class="lead">从文献证据出发，生成可执行的研究方案，接上试剂采购与实验服务。</p>
+    </section>
+    <section class="content">
+      <div class="intro">
+        <h2>科研不只需要一个答案，<br>还需要下一步能做什么。</h2>
+        <p>把研究问题、Methods、试剂和实验委托放进同一条证据链，少走弯路，快一点开始验证。</p>
+      </div>
+      <div class="steps">
+        <article class="step"><span class="step-no">01 / EVIDENCE</span><h3>检索相关文献</h3><p>从 PubMed 与 Europe PMC 获取可回溯的研究证据。</p></article>
+        <article class="step"><span class="step-no">02 / METHODS</span><h3>拆解实验路径</h3><p>把 Methods 归纳为有顺序的方法树，保留论文来源。</p></article>
+        <article class="step"><span class="step-no">03 / ACTION</span><h3>直接进入执行</h3><p>匹配试剂、库存与实验服务，发布任务并跟进履约。</p></article>
+      </div>
+      <div class="proof"><div><strong>20,000+</strong><span>生物医学文献主题</span></div><div><strong>RAG</strong><span>课题到试剂匹配</span></div><div><strong>可追溯</strong><span>证据与验证分级</span></div></div>
+      <div class="bottom">
+        <div class="cta"><h2>开始你的下一项研究</h2><p>输入一个课题，先看证据，再决定实验。</p><span class="url">www.sciencehelper.cn</span></div>
+        <div class="qr"><img src="/poster-qr.svg" alt="打开 ScienceHelper 研究方案入口的二维码"><span>扫码进入<br>ScienceHelper<br>科研工作台</span></div>
+      </div>
+      <p class="note">文献相关性不等于实验验证；商品验证状态以平台商品页和供应商记录为准。</p>
+    </section>
+  </main>
+</body>
+</html>
