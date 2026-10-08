@@ -13,6 +13,24 @@
 - `pmid` / `pmcid` / `doi`：文献证据标识。
 - `sources`：基于口语化 query 的检索入口。
 
+## Query 生成规则
+
+每条记录先读取一篇 PubMed/Europe PMC 文献的 `sourceTitle`，再从标题和主题中识别研究对象、实验方法和研究意图，转换成科研用户可能直接输入的问题。例如：
+
+```text
+文献标题：Analysis of relative gene expression data using real-time quantitative PCR...
+口语化 Query：我想研究实验方法和检测结果，应该怎么做 qPCR？
+```
+
+生成的 query 用于 RAG 召回和意图识别。`sourceTitle`、`pmid`、`pmcid`、`doi` 和 `sourceUrl` 保留文献证据链；它们不表示该文献一定提供完整实验协议。没有摘要或 Methods 全文时，平台必须提示用户回到原文核验。
+
+建议的用户输入类型包括：
+
+- “我想研究……，应该怎么做……？”：按研究对象和方法检索。
+- “我想分析……需要哪些实验步骤和关键参数？”：召回 Methods 和参数证据。
+- “……需要哪些试剂、耗材和仪器？”：把方法节点连接到试剂 RAG。
+- “我想复现这篇文献……”：按原始标题和 PMID 回溯文献。
+
 完整机器可读数据见 `bio-research-query-catalog-10000.jsonl`。以下为前 20 条示例：
 
 | ID | 口语化 Query | 原始文献标题 | PMID |

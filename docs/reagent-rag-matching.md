@@ -2,13 +2,13 @@
 
 ## 目标与边界
 
-研究方案生成后，平台把课题、论文题录、摘要和可获取的 Methods 片段作为查询上下文，从 GitHub 仓库的 `docs/bio-literature-topics-20000.jsonl` 召回相关文献主题，再对商城商品做可解释重排。该数据集中的 `topicDescription` 和 `query` 是由标题模板生成的检索辅助字段，不能单独证明某个商品在实验中有效。
+研究方案生成后，平台把课题、论文题录、摘要和可获取的 Methods 片段作为查询上下文，从 GitHub 仓库的 `docs/bio-literature-topics-20000.jsonl` 和 `docs/bio-research-query-catalog-10000.jsonl` 召回相关文献主题，再对商城商品做可解释重排。10,000 条目录中的 `query` 是从对应文献 `sourceTitle` 转换出的用户口语化检索问题，`sourceTitle`、PMID/PMCID/DOI 负责证据追溯。口语化 query、`topicDescription` 和标题本身都不能单独证明某个商品在实验中有效。
 
 因此，前端只在商品明确提供平台验证状态、质量分、成功率和验证证据数量时显示“已验证优选”。仅有文献相关性时显示“证据支持”；没有文献或平台验证记录时显示“平台待验证”。
 
 ## 计算流程
 
-1. **构造上下文**：`课题 + 论文标题 + 摘要前 1,200 字 + Methods 前 1,800 字`。Methods 智能体输出的试剂名称和用途会作为额外查询字段，仍保留对应 `paperIds`。
+1. **构造上下文**：`课题 + 口语化 query + sourceTitle + 论文摘要前 1,200 字 + Methods 前 1,800 字`。Methods 智能体输出的试剂名称和用途会作为额外查询字段，仍保留对应 `paperIds` 和 PMID/DOI。
 2. **RAG 召回**：中文文本使用单字/二元组，英文和货号使用词项。字段权重为 `title=5`、`topic=5`、`category=3`、`intent=2`、`query=2`、`description=1`；完整主题短语命中额外加 12 分，返回最多 8 条证据。
 3. **实验环节对齐**：召回主题映射到 RNA 提取、逆转录、qPCR、建库、样本处理、蛋白与免疫、质控等环节。商品名称、品牌、类别、规格和标签也映射到同一组环节，计算 RAG 支持度。
 4. **商品排序**：

@@ -22,8 +22,8 @@ npm start
 - `ml/`：适配器训练与模型服务脚本
 - `deploy/`：systemd、Nginx 和云主机部署配置
 - `scripts/build.cjs`：前端构建脚本
-- `docs/bio-research-query-catalog-10000.jsonl`：10,000 条生物科研常规 query 与 10 个文献检索/开放全文入口
-- `docs/bio-research-query-catalog-10000.md`：数据字段说明和前 20 条可读示例
+- `docs/bio-research-query-catalog-10000.jsonl`：由 10,000 篇文献 title 转换出的口语化科研 query，带 PMID/DOI 证据和 10 个检索入口
+- `docs/bio-research-query-catalog-10000.md`：口语化 query 的生成规则、字段说明和前 20 条示例
 - `docs/bio-literature-topics-20000.jsonl`：20,000 条去重后的真实生物医学文献标题、课题描述、检索 query、PubMed/Europe PMC 元数据和可用 PDF 入口
 - `scripts/generate-bio-query-catalog.cjs`：可复现生成上述目录的脚本
 - `scripts/resolve-open-access-pdfs.cjs`：按 Europe PMC 开放获取结果解析每条 query 的实际 PDF 地址（需联网运行，避免伪造链接）
@@ -35,7 +35,7 @@ npm start
 
 ## 20,000 条文献课题目录
 
-`bio-literature-topics-20000.jsonl` 的每行对应一篇真实的 PubMed/Europe PMC 文献，包含 `title`、`topicDescription`、`query`、`category`、`pmid`、`doi`、`journal`、`year`、`authors`、`sourceUrl` 和 `pdfUrl` 等字段。课题描述和 query 由标题模板生成，用于平台检索和选题初筛；文件中的 `descriptionSource` 已明确标注这一点，具体结论、参数和因果关系仍需回到原文核验。
+`bio-literature-topics-20000.jsonl` 的每行对应一篇真实的 PubMed/Europe PMC 文献，包含 `title`、`topicDescription`、`query`、`category`、`pmid`、`doi`、`journal`、`year`、`authors`、`sourceUrl` 和 `pdfUrl` 等字段。`bio-research-query-catalog-10000.jsonl` 从其中前 10,000 篇的 title 生成用户口语化 query，并保留 `sourceTitle`、`method`、`intent` 和文献证据标识。口语化 query 用于检索和意图识别，不等于文献结论或实验协议；具体参数和因果关系仍需回到原文核验。
 
 如需重新抓取：
 
