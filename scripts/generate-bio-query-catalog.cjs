@@ -1,6 +1,49 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const literaturePath = path.join(__dirname, '..', 'docs', 'bio-literature-topics-20000.jsonl');
+const methodRules = [
+  [/single[- ]cell\s*rna|scrna|single[- ]cell transcript/i, '单细胞 RNA 测序'], [/spatial transcript/i, '空间转录组'],
+  [/single[- ]cell\s*atac|scatac|atac[- ]seq/i, '单细胞 ATAC 测序'], [/bulk\s*rna|rna[- ]seq|transcriptom/i, 'RNA 测序'],
+  [/whole[- ]exome|exome sequencing/i, '外显子组测序'], [/whole[- ]genome|genome sequencing/i, '全基因组测序'],
+  [/16s|microbiom|microbiota/i, '微生物组测序'], [/flow cytometr|fluorescence-activated|facs/i, '流式细胞术'],
+  [/immunohistochem/i, '免疫组化染色'], [/immunofluorescen|immunofluorescence/i, '免疫荧光染色'],
+  [/western blot|immunoblot/i, 'Western blot'], [/quantitative.*pcr|real-time.*pcr|\bqpcr\b/i, 'qPCR'],
+  [/crispr|cas9|gene edit/i, 'CRISPR 基因编辑'], [/rna interference|\bsiRNA\b|knockdown/i, 'RNA 干扰'],
+  [/proteom|mass spectrom|lc-ms|maldi/i, '蛋白质组学'], [/metabolom|metabolic profiling/i, '代谢组学'],
+  [/organoid/i, '类器官培养'], [/stem cell|ips cell|pluripotent/i, '干细胞培养'],
+  [/methylat|epigen/i, 'DNA 甲基化分析'], [/chip-seq|cut&tag|cut&run|chromatin/i, '染色质测序'],
+  [/pcr|amplification/i, 'PCR 检测'], [/survival analysis|prognos|risk model/i, '生存和预后分析'],
+  [/differential expression|gene expression/i, '基因表达分析'], [/machine learning|deep learning|prediction model/i, '预测模型分析']
+];
+const categoryLabels = { '单细胞与空间组学': '细胞和空间分布', '基因组与转录组': '基因和转录组变化', '肿瘤与疾病机制': '疾病机制和表型', '免疫与炎症': '免疫反应和炎症', '微生物组与感染': '微生物和感染', '神经科学': '神经系统变化', '干细胞与再生医学': '细胞分化和组织修复', '代谢与蛋白质组学': '蛋白质和代谢变化', '药物与治疗研究': '治疗效果和药物反应', '生物医学方法学': '实验方法和检测结果', '生物医学综合研究': '生物医学问题' };
+const intentTemplates = [
+  (subject, method) => `我想研究${subject}，应该怎么做${method}？`,
+  (subject, method) => `我想分析${subject}，用${method}需要哪些实验步骤和关键参数？`,
+  (subject, method) => `如果要检测${subject}，${method}的样本处理、试剂和质控怎么设计？`,
+  (subject, method) => `我想复现这篇文献中关于${subject}的研究，${method}需要准备什么？`,
+  (subject, method) => `针对${subject}，有哪些文献支持的${method}方案？`,
+  (subject, method) => `我想验证${subject}的变化，${method}如何选择对照、样本量和分析方法？`,
+  (subject, method) => `研究${subject}时，${method}有哪些常见失败原因和优化办法？`,
+  (subject, method) => `我想从${subject}得到可靠结果，${method}对应哪些试剂、耗材和仪器？`
+];
+function clean(value) { return String(value || '').replace(/\s+/g, ' ').trim(); }
+function inferMethod(title, category) { return methodRules.find(([pattern]) => pattern.test(title))?.[1] || (category === '生物医学方法学' ? '实验方法分析' : '文献中的实验方法'); }
+function subjectFrom(title, category) { const method = methodRules.find(([pattern]) => pattern.test(title))?.[1]; const compact = clean(title).replace(/\s*\([^)]*\)\s*/g, ' ').replace(/[,:;.!?]+/g, ' ').replace(/\s+/g, ' ').trim(); const subject = method ? compact.replace(new RegExp(method.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig'), '').trim() : compact; return subject.length >= 8 && subject.length <= 80 ? subject : (categoryLabels[category] || '这个研究主题'); }
+function makeQuery(record, index) { return intentTemplates[index % intentTemplates.length](subjectFrom(record.title, record.category), inferMethod(record.title, record.category)); }
+function makeIntent(query) { if (/试剂|耗材|仪器/.test(query)) return '关键试剂与实验材料'; if (/失败|优化/.test(query)) return '关键参数优化与失败排查'; if (/复现|实验步骤/.test(query)) return '文献 Methods 复现'; if (/对照|样本量|分析方法/.test(query)) return '研究设计与数据分析'; return '实验方案检索'; }
+function sourceLinks(query) { const encoded = encodeURIComponent(query); return [['PubMed', `https://pubmed.ncbi.nlm.nih.gov/?term=${encoded}`, '检索入口'], ['Europe PMC', `https://europepmc.org/search?query=${encoded}`, '检索入口'], ['PMC Open Access', `https://pmc.ncbi.nlm.nih.gov/?term=${encoded}`, '开放全文筛选'], ['Europe PMC OA API', `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${encoded}%20AND%20OPEN_ACCESS:Y&format=json&pageSize=10`, '优先筛选开放全文'], ['OpenAlex OA', `https://api.openalex.org/works?search=${encoded}&filter=open_access.is_oa:true&per-page=10`, '优先筛选开放全文'], ['Crossref', `https://search.crossref.org/?q=${encoded}`, '检索入口'], ['Semantic Scholar', `https://www.semanticscholar.org/search?q=${encoded}&sort=relevance`, '检索入口'], ['bioRxiv PDF search', `https://www.google.com/search?q=${encoded}+site%3Abiorxiv.org+filetype%3Apdf`, '开放全文筛选'], ['medRxiv PDF search', `https://www.google.com/search?q=${encoded}+site%3Amedrxiv.org+filetype%3Apdf`, '开放全文筛选'], ['Google Scholar PDF search', `https://scholar.google.com/scholar?q=${encoded}+filetype%3Apdf`, '检索入口']].map(([provider, url, access]) => ({ provider, url, access })); }
+const literature = fs.readFileSync(literaturePath, 'utf8').split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line));
+if (literature.length < 10000) throw new Error(`Expected at least 10000 literature records, got ${literature.length}`);
+const records = literature.slice(0, 10000).map((paper, index) => { const query = makeQuery(paper, index); return { id: `BIOQ-${String(index + 1).padStart(5, '0')}`, query, queryType: 'title-to-conversational-research-query', sourceTitle: paper.title, topic: paper.category, method: inferMethod(paper.title, paper.category), intent: makeIntent(query), source: 'Europe PMC / PubMed', sourceId: paper.sourceId, pmid: paper.pmid, pmcid: paper.pmcid, doi: paper.doi, journal: paper.journal, year: paper.year, authors: paper.authors, sourceUrl: paper.sourceUrl, pdfUrl: paper.pdfUrl, sources: sourceLinks(query) }; });
+const jsonlPath = path.join(__dirname, '..', 'docs', 'bio-research-query-catalog-10000.jsonl');
+fs.writeFileSync(jsonlPath, records.map(item => JSON.stringify(item)).join('\n') + '\n', 'utf8');
+const lines = ['# 生物科研口语化 Query 目录 10000 条', '', '每条 query 由一篇真实 PubMed/Europe PMC 文献的 title 转换而来，保留原始标题、PMID/DOI 和来源链接，供 RAG 召回和证据追溯使用。', '', '> 说明：口语化 query 是检索表达，不等于文献结论或实验协议。具体 Methods、参数和因果关系必须回到原文核验。', '', '## 数据字段', '', '- `query`：面向科研用户的自然语言问题。', '- `sourceTitle`：生成该问题的原始文献标题。', '- `method`：从标题和主题推断的实验方法标签。', '- `intent`：实验方案、Methods 复现、试剂材料或设计分析意图。', '- `pmid` / `pmcid` / `doi`：文献证据标识。', '- `sources`：基于口语化 query 的检索入口。', '', '完整机器可读数据见 `bio-research-query-catalog-10000.jsonl`。以下为前 20 条示例：', '', '| ID | 口语化 Query | 原始文献标题 | PMID |', '| --- | --- | --- | --- |', ...records.slice(0, 20).map(item => `| ${item.id} | ${item.query} | ${item.sourceTitle.replace(/\|/g, '\\|')} | ${item.pmid || '-'} |`)];
+fs.writeFileSync(path.join(__dirname, '..', 'docs', 'bio-research-query-catalog-10000.md'), lines.join('\n') + '\n', 'utf8');
+console.log(JSON.stringify({ records: records.length, first: records[0], last: records.at(-1) }, null, 2));
+
+/*
+/*
 const topics = [
   '单细胞 RNA 测序', '空间转录组', '单细胞 ATAC 测序', '单细胞多组学', 'bulk RNA 测序', '转录组测序', '外显子组测序', '全基因组测序', '宏基因组测序', '宏转录组测序',
   '16S rRNA 测序', '微生物组分析', '肠道菌群', '肿瘤免疫微环境', '肿瘤浸润淋巴细胞', 'CAR-T 细胞', 'TCR 测序', 'BCR 测序', '免疫组库', '流式细胞术',
@@ -84,3 +127,4 @@ const lines = [
 ];
 fs.writeFileSync(path.join(outputDir, 'bio-research-query-catalog-10000.md'), lines.join('\n') + '\n', 'utf8');
 console.log(`Generated ${records.length} query records.`);
+*/
