@@ -8,7 +8,7 @@
 
 ## 生物学机制问题入口
 
-2026-10-09 更新的 10,000 条 Query 目录聚焦信号调控、基因表达、细胞死亡、免疫、代谢、分化与疾病机制。用户问题询问机制、因果证据、上下游关系和证据缺口，不直接询问试剂、耗材或仪器。每条记录保留 `sourceTitle`、`literatureId`、PMID/DOI；`researchFocus`、`mechanismTopics`、`researchContexts` 和 `molecularEntities` 是从标题提取的检索标签，不能当作已验证关系。
+2026-10-09 更新的 10,000 条 Query 目录围绕疾病语境、表型与生物学机制组织问题，覆盖信号调控、基因表达、细胞死亡、免疫、代谢、分化及疾病进展。问题询问表型关联、调控、因果证据、上下游关系、时序差异和证据缺口，不直接询问试剂、耗材、仪器或实验操作。每条记录保留 `sourceTitle`、`literatureId`、PMID/DOI；`diseaseContext`、`diseases`、`phenotypeFocus`、`phenotypes`、`researchFocus`、`mechanismTopics`、`researchContexts` 和 `molecularEntities` 是标题提取或明确标记的主题回退，只作为检索标签，不能当作论文已经验证的关系。疾病/表型来源字段用于区分标题直接提取与通用回退。
 
 机制检索先回答生物学问题并提供文献证据。后续用户进入研究方案时，再通过可获取的 Methods 建立实验方法与试剂之间的关联。Query 目录更新本身不代表已修改运行中的索引或接口；接入索引时需要按 PMID 关联原文，并核验摘要和全文证据。
 

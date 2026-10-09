@@ -22,8 +22,8 @@ npm start
 - `ml/`：适配器训练与模型服务脚本
 - `deploy/`：systemd、Nginx 和云主机部署配置
 - `scripts/build.cjs`：前端构建脚本
-- `docs/bio-research-query-catalog-10000.jsonl`：由 10,000 篇机制相关文献 title 转换出的口语化生物学问题，带 PMID/DOI 证据和 10 个检索入口
-- `docs/bio-research-query-catalog-10000.md`：机制 query 的筛选与生成规则、字段说明和前 30 条示例
+- `docs/bio-research-query-catalog-10000.jsonl`：由 10,000 篇机制相关文献标题转换出的疾病、表型与机制口语化问题，带 PMID/DOI 证据和 10 个检索入口
+- `docs/bio-research-query-catalog-10000.md`：疾病/表型机制 Query 的筛选与生成规则、字段说明和前 30 条示例
 - `docs/bio-literature-topics-20000.jsonl`：20,000 条去重后的真实生物医学文献标题、课题描述、检索 query、PubMed/Europe PMC 元数据和可用 PDF 入口
 - `scripts/generate-bio-query-catalog.cjs`：可复现生成上述目录的脚本
 - `scripts/resolve-open-access-pdfs.cjs`：按 Europe PMC 开放获取结果解析每条 query 的实际 PDF 地址（需联网运行，避免伪造链接）
@@ -35,7 +35,7 @@ npm start
 
 ## 20,000 条文献课题目录
 
-`bio-literature-topics-20000.jsonl` 的每行对应一篇真实的 PubMed/Europe PMC 文献。`bio-research-query-catalog-10000.jsonl` 从中筛选 10,000 篇机制相关文献，根据标题生成口语化问题，覆盖作用机制、上下游关系、因果证据、细胞背景和证据缺口，不直接询问材料或操作步骤。目录保留 `sourceTitle`、`literatureId`、`researchFocus`、`mechanismTopics`、`intent` 和文献标识；`generationSource=title-keyword-rules-v2`、`evidenceScope=title-only` 明确标记为标题规则生成。问题用于检索和意图识别，潜在关系仍需回到原文核验；新版本请通过 PMID 关联文献，避免沿用旧编号关系。
+`bio-literature-topics-20000.jsonl` 的每行对应一篇真实的 PubMed/Europe PMC 文献。`bio-research-query-catalog-10000.jsonl` 从中筛选 10,000 篇机制相关文献，根据标题生成同时涉及疾病语境、表型和生物学机制的口语化问题，覆盖上下游关系、因果证据、细胞背景、时序和证据缺口，不直接询问试剂、耗材、仪器或实验操作。目录保留 `sourceTitle`、`literatureId`、`diseaseContext`、`diseaseContextSource`、`diseases`、`phenotypeFocus`、`phenotypeSource`、`phenotypes`、`researchFocus`、`mechanismTopics`、`intent` 和文献标识；`generationSource=title-keyword-rules-v3`、`evidenceScope=title-only` 标记标题规则生成。`diseases` 与 `phenotypes` 只记录标题直接提取项，疾病语境或表型未在标题中出现时会使用明确标记的通用/主题回退。问题中的关系是待检索假设，不代表论文结论；请通过 PMID 关联原文，并回到摘要或全文核验。
 
 如需重新抓取：
 
